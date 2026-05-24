@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use OpenApi\Annotations as OA;
 use App\Http\Controllers\Controller;
+use App\Http\Traits\PaginationHelper;
 use App\Models\Reservasi;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,37 +12,77 @@ use Illuminate\Support\Str;
 
 class ReservasiController extends Controller
 {
-    /**
-     * GET /api/reservasis
-     * Pasien hanya melihat reservasi milik sendiri.
-     */
-    public function index(): JsonResponse
-    {
-        $reservasis = Reservasi::with(['dokter', 'jadwal'])
-            ->where('user_id', auth()->id())
-            ->latest()
-            ->get();
+    use PaginationHelper;
 
-        return response()->json([
-            'status' => 'success',
-            'data'   => $reservasis,
-        ]);
+    /**
+     * @OA\Get(
+     *     path="/reservasis",
+     *     tags={"Reservasi"},
+     *     summary="Daftar reservasi milik sendiri",
+     *     description="Pasien hanya dapat melihat reservasi milik sendiri. Support filter status dan pagination.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="status",   in="query", description="Filter status", required=false, @OA\Schema(type="string", enum={"pending","dikonfirmasi","selesai","dibatalkan"})),
+     *     @OA\Parameter(name="page",     in="query", required=false, @OA\Schema(type="integer", example=1)),
+     *     @OA\Parameter(name="per_page", in="query", required=false, @OA\Schema(type="integer", example=10)),
+     *     @OA\Response(response=200, description="Daftar reservasi"),
+     *     @OA\Response(response=401, description="Unauthenticated")
+     * )
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $query = Reservasi::with(['dokter', 'jadwal'])
+            ->where('user_id', auth()->id())
+            ->latest();
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+
+        return $this->paginatedResponse($query->paginate($this->getPerPage(10)));
     }
 
     /**
-     * POST /api/reservasis
-     * Buat reservasi baru. user_id diambil dari JWT, bukan input.
+     * @OA\Post(
+     *     path="/reservasis",
+     *     tags={"Reservasi"},
+     *     summary="Buat reservasi baru",
+     *     description="user_id diambil otomatis dari JWT token. nomor_antrian digenerate otomatis.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"dokter_id","jadwal_id","tanggal_reservasi","keluhan"},
+     *             @OA\Property(property="dokter_id",         type="integer", example=1),
+     *             @OA\Property(property="jadwal_id",         type="integer", example=1),
+     *             @OA\Property(property="tanggal_reservasi", type="string",  format="date", example="2026-06-10"),
+     *             @OA\Property(property="keluhan",           type="string",  example="Demam tinggi selama 3 hari", minLength=10)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Reservasi berhasil dibuat",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status",  type="string", example="success"),
+     *             @OA\Property(property="message", type="string", example="Reservasi berhasil dibuat."),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="nomor_antrian", type="string", example="ANT-K7PQ2M"),
+     *                 @OA\Property(property="status",        type="string", example="pending")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated"),
+     *     @OA\Response(response=422, description="Validasi gagal")
+     * )
      */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'dokter_id'          => 'required|exists:dokters,id',
-            'jadwal_id'          => 'required|exists:jadwals,id',
-            'tanggal_reservasi'  => 'required|date|after_or_equal:today',
-            'keluhan'            => 'required|string|min:10|max:1000',
+            'dokter_id'         => 'required|exists:dokters,id',
+            'jadwal_id'         => 'required|exists:jadwals,id',
+            'tanggal_reservasi' => 'required|date|after_or_equal:today',
+            'keluhan'           => 'required|string|min:10|max:1000',
         ]);
 
-        // Verifikasi jadwal milik dokter yang dipilih
         $jadwal = \App\Models\Jadwal::where('id', $validated['jadwal_id'])
             ->where('dokter_id', $validated['dokter_id'])
             ->where('is_aktif', true)
@@ -64,8 +106,16 @@ class ReservasiController extends Controller
     }
 
     /**
-     * GET /api/reservasis/{id}
-     * Pasien hanya bisa lihat milik sendiri.
+     * @OA\Get(
+     *     path="/reservasis/{id}",
+     *     tags={"Reservasi"},
+     *     summary="Detail reservasi milik sendiri",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
+     *     @OA\Response(response=200, description="Detail reservasi beserta rekam medis jika sudah ada"),
+     *     @OA\Response(response=401, description="Unauthenticated"),
+     *     @OA\Response(response=404, description="Reservasi tidak ditemukan")
+     * )
      */
     public function show(int $id): JsonResponse
     {
@@ -73,33 +123,37 @@ class ReservasiController extends Controller
             ->where('user_id', auth()->id())
             ->findOrFail($id);
 
-        return response()->json([
-            'status' => 'success',
-            'data'   => $reservasi,
-        ]);
+        return response()->json(['status' => 'success', 'data' => $reservasi]);
     }
 
     /**
-     * PUT /api/reservasis/{id}
-     * Pasien hanya boleh membatalkan (status → dibatalkan) reservasi milik sendiri.
-     * Status lain (dikonfirmasi, selesai) hanya bisa diset admin.
+     * @OA\Put(
+     *     path="/reservasis/{id}",
+     *     tags={"Reservasi"},
+     *     summary="Batalkan reservasi (pasien only)",
+     *     description="Pasien hanya bisa membatalkan reservasi yang masih berstatus 'pending'.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(@OA\Property(property="status", type="string", enum={"dibatalkan"}, example="dibatalkan"))
+     *     ),
+     *     @OA\Response(response=200, description="Reservasi berhasil dibatalkan"),
+     *     @OA\Response(response=422, description="Status bukan pending, tidak bisa dibatalkan")
+     * )
      */
     public function update(Request $request, int $id): JsonResponse
     {
         $reservasi = Reservasi::where('user_id', auth()->id())->findOrFail($id);
 
-        // Pasien hanya boleh membatalkan, dan hanya ketika status masih pending
         if ($reservasi->status !== 'pending') {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Reservasi tidak dapat diubah karena sudah berstatus ' . $reservasi->status . '.',
+                'message' => "Reservasi tidak dapat diubah karena sudah berstatus {$reservasi->status}.",
             ], 422);
         }
 
-        $request->validate([
-            'status' => 'required|in:dibatalkan',
-        ]);
-
+        $request->validate(['status' => 'required|in:dibatalkan']);
         $reservasi->update(['status' => 'dibatalkan']);
 
         return response()->json([
@@ -110,50 +164,76 @@ class ReservasiController extends Controller
     }
 
     /**
-     * DELETE /api/reservasis/{id}
-     * Hapus (soft delete) reservasi milik sendiri yang masih pending.
+     * @OA\Delete(
+     *     path="/reservasis/{id}",
+     *     tags={"Reservasi"},
+     *     summary="Hapus reservasi (hanya yang masih pending)",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
+     *     @OA\Response(response=200, description="Reservasi berhasil dihapus"),
+     *     @OA\Response(response=404, description="Tidak ditemukan atau bukan milik sendiri")
+     * )
      */
     public function destroy(int $id): JsonResponse
     {
-        $reservasi = Reservasi::where('user_id', auth()->id())
+        Reservasi::where('user_id', auth()->id())
             ->where('status', 'pending')
-            ->findOrFail($id);
+            ->findOrFail($id)
+            ->delete();
 
-        $reservasi->delete();
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Reservasi berhasil dihapus.',
-        ]);
+        return response()->json(['status' => 'success', 'message' => 'Reservasi berhasil dihapus.']);
     }
 
-    // ═══════════════════════════════════════════════════════
-    // ADMIN ENDPOINTS
-    // ═══════════════════════════════════════════════════════
+    // ═══ ADMIN ═══════════════════════════════════════════════════════
 
     /**
-     * GET /api/admin/reservasis — admin: lihat semua reservasi.
+     * @OA\Get(
+     *     path="/admin/reservasis",
+     *     tags={"Admin"},
+     *     summary="Semua reservasi seluruh pasien (admin only)",
+     *     security={{"bearerAuth":{}, "apiKeyAuth":{}}},
+     *     @OA\Parameter(name="status",    in="query", required=false, @OA\Schema(type="string", enum={"pending","dikonfirmasi","selesai","dibatalkan"})),
+     *     @OA\Parameter(name="search",    in="query", description="Cari nama pasien", required=false, @OA\Schema(type="string")),
+     *     @OA\Parameter(name="dokter_id", in="query", required=false, @OA\Schema(type="integer")),
+     *     @OA\Parameter(name="page",      in="query", required=false, @OA\Schema(type="integer", example=1)),
+     *     @OA\Parameter(name="per_page",  in="query", required=false, @OA\Schema(type="integer", example=15)),
+     *     @OA\Response(response=200, description="Semua reservasi"),
+     *     @OA\Response(response=401, description="Unauthenticated / API Key salah"),
+     *     @OA\Response(response=403, description="Bukan admin")
+     * )
      */
-    public function indexAdmin(): JsonResponse
+    public function indexAdmin(Request $request): JsonResponse
     {
-        $reservasis = Reservasi::with(['user', 'dokter', 'jadwal', 'rekamMedis'])
-            ->latest()
-            ->get();
+        $query = Reservasi::with(['user', 'dokter', 'jadwal', 'rekamMedis'])->latest();
 
-        return response()->json([
-            'status' => 'success',
-            'total'  => $reservasis->count(),
-            'data'   => $reservasis,
-        ]);
+        if ($status   = $request->query('status'))    $query->where('status', $status);
+        if ($search   = $request->query('search'))    $query->whereHas('user', fn($q) => $q->where('name', 'like', "%{$search}%"));
+        if ($dokterId = $request->query('dokter_id')) $query->where('dokter_id', $dokterId);
+
+        return $this->paginatedResponse($query->paginate($this->getPerPage(15)));
     }
 
     /**
-     * PATCH /api/admin/reservasis/{id}/status — admin: update status reservasi.
+     * @OA\Patch(
+     *     path="/admin/reservasis/{id}/status",
+     *     tags={"Admin"},
+     *     summary="Update status reservasi (admin only)",
+     *     security={{"bearerAuth":{}, "apiKeyAuth":{}}},
+     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", enum={"pending","dikonfirmasi","selesai","dibatalkan"}, example="dikonfirmasi")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Status berhasil diperbarui"),
+     *     @OA\Response(response=403, description="Bukan admin"),
+     *     @OA\Response(response=404, description="Reservasi tidak ditemukan")
+     * )
      */
     public function updateStatus(Request $request, int $id): JsonResponse
     {
         $reservasi = Reservasi::findOrFail($id);
-
         $validated = $request->validate([
             'status' => 'required|in:pending,dikonfirmasi,selesai,dibatalkan',
         ]);

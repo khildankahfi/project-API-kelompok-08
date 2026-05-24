@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use OpenApi\Annotations as OA;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -14,8 +15,41 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 class AuthController extends Controller
 {
     /**
-     * Register pasien baru.
-     * Otomatis generate api_key unik saat register.
+     * @OA\Post(
+     *     path="/auth/register",
+     *     tags={"Auth"},
+     *     summary="Registrasi akun pasien baru",
+     *     description="Mendaftarkan akun baru dengan role 'pasien'. Mengembalikan JWT token dan API Key.",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"name","email","password"},
+     *             @OA\Property(property="name",     type="string",  example="Budi Santoso"),
+     *             @OA\Property(property="email",    type="string",  format="email", example="budi@example.com"),
+     *             @OA\Property(property="password", type="string",  format="password", example="password123", minLength=6),
+     *             @OA\Property(property="no_hp",    type="string",  example="081234567890")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="Registrasi berhasil",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status",      type="string",  example="success"),
+     *             @OA\Property(property="message",     type="string",  example="Registrasi berhasil"),
+     *             @OA\Property(property="token",       type="string",  example="eyJ0eXAiOiJKV1Q..."),
+     *             @OA\Property(property="token_type",  type="string",  example="bearer"),
+     *             @OA\Property(property="expires_in",  type="integer", example=3600),
+     *             @OA\Property(property="api_key",     type="string",  example="xK9mP2qRtL8nZvYw..."),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="id",    type="integer", example=3),
+     *                 @OA\Property(property="name",  type="string",  example="Budi Santoso"),
+     *                 @OA\Property(property="email", type="string",  example="budi@example.com"),
+     *                 @OA\Property(property="role",  type="string",  example="pasien")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="Validasi gagal")
+     * )
      */
     public function register(Request $request): JsonResponse
     {
@@ -32,7 +66,6 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
             'no_hp'    => $validated['no_hp'] ?? null,
             'role'     => 'pasien',
-            // api_key di-generate otomatis, bukan dari input user
             'api_key'  => Str::random(40),
         ]);
 
@@ -50,7 +83,32 @@ class AuthController extends Controller
     }
 
     /**
-     * Login dan dapatkan JWT token.
+     * @OA\Post(
+     *     path="/auth/login",
+     *     tags={"Auth"},
+     *     summary="Login dan dapatkan JWT token",
+     *     description="Autentikasi dengan email dan password. Mengembalikan JWT token dan API Key untuk digunakan di request selanjutnya.",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email","password"},
+     *             @OA\Property(property="email",    type="string", format="email", example="admin@klinik.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="admin123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login berhasil",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status",     type="string",  example="success"),
+     *             @OA\Property(property="token",      type="string",  example="eyJ0eXAiOiJKV1Q..."),
+     *             @OA\Property(property="token_type", type="string",  example="bearer"),
+     *             @OA\Property(property="expires_in", type="integer", example=3600),
+     *             @OA\Property(property="api_key",    type="string",  example="xK9mP2qRtL8nZvYw...")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Email atau password salah")
+     * )
      */
     public function login(Request $request): JsonResponse
     {
@@ -79,37 +137,71 @@ class AuthController extends Controller
     }
 
     /**
-     * Logout dan invalidate token JWT saat ini.
+     * @OA\Post(
+     *     path="/auth/logout",
+     *     tags={"Auth"},
+     *     summary="Logout dan invalidate token",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(response=200, description="Logout berhasil"),
+     *     @OA\Response(response=401, description="Token tidak valid")
+     * )
      */
     public function logout(): JsonResponse
     {
         try {
             JWTAuth::invalidate(JWTAuth::getToken());
-        } catch (JWTException) {
-            // Token sudah expired/invalid — tetap anggap logout berhasil
-        }
+        } catch (JWTException) {}
 
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Logout berhasil.',
-        ]);
+        return response()->json(['status' => 'success', 'message' => 'Logout berhasil.']);
     }
 
     /**
-     * Ambil data user yang sedang login.
+     * @OA\Get(
+     *     path="/auth/me",
+     *     tags={"Auth"},
+     *     summary="Ambil data profil user yang sedang login",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Data user berhasil diambil",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="id",      type="integer", example=1),
+     *                 @OA\Property(property="name",    type="string",  example="Administrator"),
+     *                 @OA\Property(property="email",   type="string",  example="admin@klinik.com"),
+     *                 @OA\Property(property="role",    type="string",  example="admin"),
+     *                 @OA\Property(property="api_key", type="string",  example="xK9mP2qRtL8nZvYw...")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated")
+     * )
      */
     public function me(): JsonResponse
     {
-        $user = auth()->user();
-
-        return response()->json([
-            'status' => 'success',
-            'data'   => $user,
-        ]);
+        return response()->json(['status' => 'success', 'data' => auth()->user()]);
     }
 
     /**
-     * Refresh JWT token.
+     * @OA\Post(
+     *     path="/auth/refresh",
+     *     tags={"Auth"},
+     *     summary="Refresh JWT token tanpa login ulang",
+     *     description="Token lama diinvalidasi dan token baru dikembalikan.",
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Token berhasil di-refresh",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status",     type="string",  example="success"),
+     *             @OA\Property(property="token",      type="string",  example="eyJ0eXAiOiJKV1Q..."),
+     *             @OA\Property(property="token_type", type="string",  example="bearer"),
+     *             @OA\Property(property="expires_in", type="integer", example=3600)
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Token tidak dapat di-refresh")
+     * )
      */
     public function refresh(): JsonResponse
     {

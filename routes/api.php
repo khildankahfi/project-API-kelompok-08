@@ -7,52 +7,59 @@ use App\Http\Controllers\Api\ReservasiController;
 use App\Http\Controllers\Api\RekamMedisController;
 use Illuminate\Support\Facades\Route;
 
+/*
+|--------------------------------------------------------------------------
+| API Routes — Klinik Sehat
+|--------------------------------------------------------------------------
+| Rate Limiting:
+|   POST /auth/login    → max 5 req/menit per IP     (throttle:login)
+|   POST /auth/register → max 10 req/menit per IP    (throttle:register)
+|   Semua endpoint lain → max 60 req/menit per user  (throttle:api)
+*/
+
 // ═══════════════════════════════════════════════════════════
-// PUBLIC ROUTES (tidak perlu token)
+// PUBLIC ROUTES
 // ═══════════════════════════════════════════════════════════
 Route::prefix('auth')->group(function () {
-    Route::post('register', [AuthController::class, 'register']);
-    Route::post('login',    [AuthController::class, 'login']);
+    // Rate limit ketat untuk auth endpoint — mencegah brute force
+    Route::post('register', [AuthController::class, 'register'])->middleware('throttle:register');
+    Route::post('login',    [AuthController::class, 'login'])->middleware('throttle:login');
 });
 
-// Endpoint publik: lihat daftar dokter & jadwal
-Route::get('dokters',       [DokterController::class, 'index']);
-Route::get('dokters/{id}',  [DokterController::class, 'show']);
-Route::get('jadwals',       [JadwalController::class, 'index']);
-Route::get('jadwals/{id}',  [JadwalController::class, 'show']);
+// Endpoint publik — rate limit standar
+Route::middleware('throttle:api')->group(function () {
+    Route::get('dokters',       [DokterController::class, 'index']);
+    Route::get('dokters/{id}',  [DokterController::class, 'show']);
+    Route::get('jadwals',       [JadwalController::class, 'index']);
+    Route::get('jadwals/{id}',  [JadwalController::class, 'show']);
+});
 
 // ═══════════════════════════════════════════════════════════
-// PROTECTED BY JWT (auth:api)
+// PROTECTED — JWT + rate limit
 // ═══════════════════════════════════════════════════════════
-Route::middleware('auth:api')->group(function () {
+Route::middleware(['auth:api', 'throttle:api'])->group(function () {
 
-    // ── Auth Utilities ───────────────────────────────────────
+    // Auth utilities
     Route::prefix('auth')->group(function () {
         Route::post('logout',  [AuthController::class, 'logout']);
         Route::get('me',       [AuthController::class, 'me']);
-        Route::post('refresh', [AuthController::class, 'refresh']); // ← baru: refresh JWT
+        Route::post('refresh', [AuthController::class, 'refresh']);
     });
 
-    // ── Pasien: Reservasi (user hanya lihat/buat milik sendiri) ──
+    // Pasien: kelola reservasi milik sendiri
     Route::apiResource('reservasis', ReservasiController::class);
 
-    // ════════════════════════════════════════════════════════
-    // PROTECTED BY JWT + API KEY + ADMIN ROLE
-    // ════════════════════════════════════════════════════════
+    // ─── ADMIN: JWT + API Key + role admin ──────────────────────────────
     Route::middleware(['api.key', 'admin'])->group(function () {
 
-        // CRUD dokter (kecuali index & show yang sudah public)
         Route::apiResource('dokters', DokterController::class)
              ->except(['index', 'show']);
 
-        // CRUD jadwal (kecuali index & show yang sudah public)
         Route::apiResource('jadwals', JadwalController::class)
              ->except(['index', 'show']);
 
-        // CRUD rekam medis
         Route::apiResource('rekam-medis', RekamMedisController::class);
 
-        // Admin: lihat SEMUA reservasi & update status
         Route::get('admin/reservasis',               [ReservasiController::class, 'indexAdmin']);
         Route::patch('admin/reservasis/{id}/status', [ReservasiController::class, 'updateStatus']);
     });

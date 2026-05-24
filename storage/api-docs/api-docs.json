@@ -1,0 +1,1338 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Klinik Sehat API",
+        "description": "REST API untuk aplikasi manajemen klinik. Mencakup manajemen dokter, jadwal, reservasi pasien, dan rekam medis.",
+        "contact": {
+            "name": "Klinik Sehat Dev Team",
+            "email": "admin@klinik.com"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://127.0.0.1:8000/api",
+            "description": "Local Development Server"
+        }
+    ],
+    "paths": {
+        "/auth/register": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Registrasi akun pasien baru",
+                "description": "Mendaftarkan akun baru dengan role 'pasien'. Mengembalikan JWT token dan API Key.",
+                "operationId": "08136088c4862c313b35d6518bab8d3a",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Budi Santoso"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "budi@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123",
+                                        "minLength": 6
+                                    },
+                                    "no_hp": {
+                                        "type": "string",
+                                        "example": "081234567890"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Registrasi berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Registrasi berhasil"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "eyJ0eXAiOiJKV1Q..."
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "bearer"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer",
+                                            "example": 3600
+                                        },
+                                        "api_key": {
+                                            "type": "string",
+                                            "example": "xK9mP2qRtL8nZvYw..."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 3
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Budi Santoso"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "budi@example.com"
+                                                },
+                                                "role": {
+                                                    "type": "string",
+                                                    "example": "pasien"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                }
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login dan dapatkan JWT token",
+                "description": "Autentikasi dengan email dan password. Mengembalikan JWT token dan API Key untuk digunakan di request selanjutnya.",
+                "operationId": "99d66635c4992aeaa6aa44ff653d0563",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "admin@klinik.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "admin123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login berhasil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "eyJ0eXAiOiJKV1Q..."
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "bearer"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer",
+                                            "example": 3600
+                                        },
+                                        "api_key": {
+                                            "type": "string",
+                                            "example": "xK9mP2qRtL8nZvYw..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Email atau password salah"
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout dan invalidate token",
+                "operationId": "6abf3b64a4bc7838d56346f05a5153af",
+                "responses": {
+                    "200": {
+                        "description": "Logout berhasil"
+                    },
+                    "401": {
+                        "description": "Token tidak valid"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Ambil data profil user yang sedang login",
+                "operationId": "7edae2cdbaafc10dff8c9c4198b320a2",
+                "responses": {
+                    "200": {
+                        "description": "Data user berhasil diambil",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "name": {
+                                                    "type": "string",
+                                                    "example": "Administrator"
+                                                },
+                                                "email": {
+                                                    "type": "string",
+                                                    "example": "admin@klinik.com"
+                                                },
+                                                "role": {
+                                                    "type": "string",
+                                                    "example": "admin"
+                                                },
+                                                "api_key": {
+                                                    "type": "string",
+                                                    "example": "xK9mP2qRtL8nZvYw..."
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Refresh JWT token tanpa login ulang",
+                "description": "Token lama diinvalidasi dan token baru dikembalikan.",
+                "operationId": "e7ab7446393758bb71fd1946a349e500",
+                "responses": {
+                    "200": {
+                        "description": "Token berhasil di-refresh",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "token": {
+                                            "type": "string",
+                                            "example": "eyJ0eXAiOiJKV1Q..."
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "example": "bearer"
+                                        },
+                                        "expires_in": {
+                                            "type": "integer",
+                                            "example": 3600
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Token tidak dapat di-refresh"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/dokters": {
+            "get": {
+                "tags": [
+                    "Dokter"
+                ],
+                "summary": "Daftar semua dokter (public)",
+                "description": "Menampilkan semua dokter beserta jadwal aktif. Support pencarian dan pagination.",
+                "operationId": "eddd715a507d7337af6a8ecd61a72e9a",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Cari nama atau spesialisasi",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "penyakit dalam"
+                        }
+                    },
+                    {
+                        "name": "spesialisasi",
+                        "in": "query",
+                        "description": "Filter per spesialisasi",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "Penyakit Dalam"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Nomor halaman",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Jumlah item per halaman (max 50)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar dokter",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "nama": {
+                                                        "type": "string",
+                                                        "example": "dr. Siti Nurhaliza, Sp.PD"
+                                                    },
+                                                    "spesialisasi": {
+                                                        "type": "string",
+                                                        "example": "Penyakit Dalam"
+                                                    },
+                                                    "biaya_konsultasi": {
+                                                        "type": "integer",
+                                                        "example": 150000
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "meta": {
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "example": 10
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "example": 5
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "has_more": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Dokter"
+                ],
+                "summary": "Tambah dokter baru (admin only)",
+                "operationId": "64533b2b394175ade9e1d39f976af2c5",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "nama",
+                                    "spesialisasi",
+                                    "no_str",
+                                    "biaya_konsultasi"
+                                ],
+                                "properties": {
+                                    "nama": {
+                                        "type": "string",
+                                        "example": "dr. Siti Nurhaliza, Sp.PD"
+                                    },
+                                    "spesialisasi": {
+                                        "type": "string",
+                                        "example": "Penyakit Dalam"
+                                    },
+                                    "no_str": {
+                                        "type": "string",
+                                        "example": "STR-2024-001"
+                                    },
+                                    "biaya_konsultasi": {
+                                        "type": "integer",
+                                        "example": 150000
+                                    },
+                                    "bio": {
+                                        "type": "string",
+                                        "example": "Dokter berpengalaman 10 tahun."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Dokter berhasil ditambahkan"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Bukan admin"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": [],
+                        "apiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/dokters/{id}": {
+            "get": {
+                "tags": [
+                    "Dokter"
+                ],
+                "summary": "Detail satu dokter (public)",
+                "operationId": "e51dfabf7a2595423c0702eeafadb806",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID dokter",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail dokter beserta jadwal aktif"
+                    },
+                    "404": {
+                        "description": "Dokter tidak ditemukan"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Dokter"
+                ],
+                "summary": "Update data dokter (admin only)",
+                "operationId": "fc887cfee884e609865300b8df2b72af",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "biaya_konsultasi": {
+                                        "type": "integer",
+                                        "example": 175000
+                                    },
+                                    "bio": {
+                                        "type": "string",
+                                        "example": "Bio diperbarui."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Dokter berhasil diperbarui"
+                    },
+                    "403": {
+                        "description": "Bukan admin"
+                    },
+                    "404": {
+                        "description": "Dokter tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": [],
+                        "apiKeyAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Dokter"
+                ],
+                "summary": "Hapus dokter (admin only)",
+                "operationId": "93904b002351cc0d39f19406c87c9d92",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dokter berhasil dihapus"
+                    },
+                    "403": {
+                        "description": "Bukan admin"
+                    },
+                    "404": {
+                        "description": "Dokter tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": [],
+                        "apiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/rekam-medis": {
+            "get": {
+                "tags": [
+                    "Rekam Medis"
+                ],
+                "summary": "Semua rekam medis (admin only)",
+                "operationId": "93987d0b674378458458354edbe6b40d",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Cari diagnosis atau resep",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dokter_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar rekam medis"
+                    },
+                    "403": {
+                        "description": "Bukan admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": [],
+                        "apiKeyAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Rekam Medis"
+                ],
+                "summary": "Buat rekam medis baru (admin only)",
+                "description": "user_id dan dokter_id diambil otomatis dari reservasi_id. Status reservasi otomatis berubah ke 'selesai'.",
+                "operationId": "701eaff472e843aea292b35e8af752d6",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reservasi_id",
+                                    "tanggal_periksa",
+                                    "diagnosis",
+                                    "resep_obat"
+                                ],
+                                "properties": {
+                                    "reservasi_id": {
+                                        "description": "Unik — satu reservasi hanya bisa punya satu rekam medis",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "tanggal_periksa": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-06-10"
+                                    },
+                                    "diagnosis": {
+                                        "type": "string",
+                                        "example": "Infeksi Saluran Pernapasan Atas (ISPA)",
+                                        "minLength": 5
+                                    },
+                                    "resep_obat": {
+                                        "type": "string",
+                                        "example": "Paracetamol 500mg 3x1",
+                                        "minLength": 5
+                                    },
+                                    "catatan_dokter": {
+                                        "type": "string",
+                                        "example": "Istirahat 3 hari."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Rekam medis berhasil dibuat",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Rekam medis berhasil ditambahkan. Status reservasi diperbarui ke 'selesai'."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Bukan admin"
+                    },
+                    "422": {
+                        "description": "Validasi gagal atau reservasi sudah punya rekam medis"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": [],
+                        "apiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/rekam-medis/{id}": {
+            "get": {
+                "tags": [
+                    "Rekam Medis"
+                ],
+                "summary": "Detail rekam medis (admin only)",
+                "operationId": "cb47d9b49eef69cb5c6934b81f02868c",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail rekam medis"
+                    },
+                    "404": {
+                        "description": "Tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": [],
+                        "apiKeyAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Rekam Medis"
+                ],
+                "summary": "Update rekam medis (admin only)",
+                "operationId": "8f184343fecf141f00bb98f02ac4bd9d",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "diagnosis": {
+                                        "type": "string",
+                                        "example": "Diagnosis diperbarui"
+                                    },
+                                    "resep_obat": {
+                                        "type": "string",
+                                        "example": "Resep diperbarui"
+                                    },
+                                    "catatan_dokter": {
+                                        "type": "string",
+                                        "example": "Catatan diperbarui"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Rekam medis berhasil diperbarui"
+                    },
+                    "404": {
+                        "description": "Tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": [],
+                        "apiKeyAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Rekam Medis"
+                ],
+                "summary": "Hapus rekam medis (admin only)",
+                "operationId": "9dc21d07c096214125d0ae711f7a7798",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Rekam medis berhasil dihapus"
+                    },
+                    "404": {
+                        "description": "Tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": [],
+                        "apiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/reservasis": {
+            "get": {
+                "tags": [
+                    "Reservasi"
+                ],
+                "summary": "Daftar reservasi milik sendiri",
+                "description": "Pasien hanya dapat melihat reservasi milik sendiri. Support filter status dan pagination.",
+                "operationId": "b804709c05b64f9770b6f410263b4002",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "dikonfirmasi",
+                                "selesai",
+                                "dibatalkan"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Daftar reservasi"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Reservasi"
+                ],
+                "summary": "Buat reservasi baru",
+                "description": "user_id diambil otomatis dari JWT token. nomor_antrian digenerate otomatis.",
+                "operationId": "fa7d4731e50377f299d6ff5b9fba94ce",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "dokter_id",
+                                    "jadwal_id",
+                                    "tanggal_reservasi",
+                                    "keluhan"
+                                ],
+                                "properties": {
+                                    "dokter_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "jadwal_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "tanggal_reservasi": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2026-06-10"
+                                    },
+                                    "keluhan": {
+                                        "type": "string",
+                                        "example": "Demam tinggi selama 3 hari",
+                                        "minLength": 10
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Reservasi berhasil dibuat",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Reservasi berhasil dibuat."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "nomor_antrian": {
+                                                    "type": "string",
+                                                    "example": "ANT-K7PQ2M"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "pending"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/reservasis/{id}": {
+            "get": {
+                "tags": [
+                    "Reservasi"
+                ],
+                "summary": "Detail reservasi milik sendiri",
+                "operationId": "0aabdc6a9c68ca4204c80ec84a92da22",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detail reservasi beserta rekam medis jika sudah ada"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Reservasi tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Reservasi"
+                ],
+                "summary": "Batalkan reservasi (pasien only)",
+                "description": "Pasien hanya bisa membatalkan reservasi yang masih berstatus 'pending'.",
+                "operationId": "cb9a05645b50c60706bda3c6c4f71653",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "status": {
+                                        "type": "string",
+                                        "example": "dibatalkan",
+                                        "enum": [
+                                            "dibatalkan"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Reservasi berhasil dibatalkan"
+                    },
+                    "422": {
+                        "description": "Status bukan pending, tidak bisa dibatalkan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Reservasi"
+                ],
+                "summary": "Hapus reservasi (hanya yang masih pending)",
+                "operationId": "4ca2c7b43f23e652d2d25c549099bc3f",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reservasi berhasil dihapus"
+                    },
+                    "404": {
+                        "description": "Tidak ditemukan atau bukan milik sendiri"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/admin/reservasis": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Semua reservasi seluruh pasien (admin only)",
+                "operationId": "53429823529e90001c86ec949c7dee92",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "dikonfirmasi",
+                                "selesai",
+                                "dibatalkan"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Cari nama pasien",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "dokter_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Semua reservasi"
+                    },
+                    "401": {
+                        "description": "Unauthenticated / API Key salah"
+                    },
+                    "403": {
+                        "description": "Bukan admin"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": [],
+                        "apiKeyAuth": []
+                    }
+                ]
+            }
+        },
+        "/admin/reservasis/{id}/status": {
+            "patch": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Update status reservasi (admin only)",
+                "operationId": "2b25789f653439b303da0bfed69c4ca7",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "status": {
+                                        "type": "string",
+                                        "example": "dikonfirmasi",
+                                        "enum": [
+                                            "pending",
+                                            "dikonfirmasi",
+                                            "selesai",
+                                            "dibatalkan"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Status berhasil diperbarui"
+                    },
+                    "403": {
+                        "description": "Bukan admin"
+                    },
+                    "404": {
+                        "description": "Reservasi tidak ditemukan"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": [],
+                        "apiKeyAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "Masukkan JWT token dari response login. Format: Bearer {token}",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            },
+            "apiKeyAuth": {
+                "type": "apiKey",
+                "description": "API Key dari response login/register. Wajib untuk endpoint admin.",
+                "name": "X-API-KEY",
+                "in": "header"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Auth",
+            "description": "Autentikasi & manajemen token JWT"
+        },
+        {
+            "name": "Dokter",
+            "description": "Data dokter — GET public, CUD admin only"
+        },
+        {
+            "name": "Reservasi",
+            "description": "Reservasi pasien — JWT required"
+        },
+        {
+            "name": "Admin",
+            "description": "Endpoint khusus admin — JWT + API Key + role admin"
+        },
+        {
+            "name": "Rekam Medis",
+            "description": "Rekam medis — admin only"
+        }
+    ]
+}
