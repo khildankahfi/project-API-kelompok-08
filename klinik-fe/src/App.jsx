@@ -83,15 +83,44 @@ const GLOBAL_CSS = `
   .nav-btn.active { color:#fff; background:var(--primary); font-weight:600; }
   .nav-icon { font-size:18px; width:22px; text-align:center; flex-shrink:0; }
 
-  .sb-footer { padding:16px 18px 20px; border-top:1px solid rgba(255,255,255,0.07); flex-shrink:0; }
-  .sb-user { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .sb-footer { padding:10px 12px 14px; border-top:1px solid rgba(255,255,255,.07); flex-shrink:0; position:relative; }
+  .sb-user-btn {
+    display:flex; align-items:center; gap:12px; width:100%;
+    padding:10px 12px; border-radius:var(--r-sm); border:none;
+    background:transparent; cursor:pointer; text-align:left;
+    transition:background var(--tr); font-family:var(--font);
+  }
+  .sb-user-btn:hover { background:rgba(255,255,255,.06); }
+  .sb-user { display:flex; align-items:center; gap:12px; }
   .avatar { border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; flex-shrink:0; }
   .av-lg { width:40px; height:40px; font-size:14px; }
   .av-sm { width:34px; height:34px; font-size:13px; }
   .sb-name  { font-size:14px; font-weight:600; color:#fff; line-height:1.3; }
-  .sb-email { font-size:12px; color:rgba(255,255,255,0.32); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
-  .btn-logout { width:100%; padding:10px; background:rgba(239,68,68,0.1); color:#fca5a5; border:1px solid rgba(239,68,68,0.2); border-radius:var(--r-sm); cursor:pointer; font-size:13px; font-weight:600; transition:all var(--tr); font-family:var(--font); }
-  .btn-logout:hover { background:rgba(239,68,68,0.2); }
+  .sb-email { font-size:12px; color:rgba(255,255,255,.32); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px; }
+  .btn-logout { width:100%; padding:10px; background:rgba(239,68,68,.1); color:#fca5a5; border:1px solid rgba(239,68,68,.2); border-radius:var(--r-sm); cursor:pointer; font-size:13px; font-weight:600; transition:all var(--tr); font-family:var(--font); }
+  .btn-logout:hover { background:rgba(239,68,68,.2); }
+
+  /* ── USER DROPDOWN ── */
+  .user-dropdown {
+    position:absolute; bottom:calc(100% + 6px); left:12px; right:12px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-md); box-shadow:var(--sh-lg);
+    overflow:hidden; animation:fadeUp .18s ease;
+    z-index:300;
+  }
+  .ud-head { padding:14px 16px; border-bottom:1px solid var(--border); background:var(--surface-2); }
+  .ud-name  { font-size:14px; font-weight:700; color:var(--ink); }
+  .ud-email { font-size:12px; color:var(--text-3); margin-top:2px; }
+  .ud-item {
+    display:flex; align-items:center; gap:10px;
+    width:100%; padding:11px 16px; border:none; background:transparent;
+    cursor:pointer; font-family:var(--font); font-size:13px; font-weight:500;
+    color:var(--text-2); text-align:left; transition:background var(--tr);
+  }
+  .ud-item:hover { background:var(--surface-2); color:var(--primary); }
+  .ud-item.danger { color:var(--danger); }
+  .ud-item.danger:hover { background:#fef2f2; }
+  .ud-divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
 
   .sb-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:199; animation:fadeIn .2s ease; }
 
@@ -1128,6 +1157,96 @@ function MyRekamMedis({ call }) {
 }
 
 // ─── DASHBOARD SHELL ──────────────────────────────────────────────────────────
+// ─── PROFILE PAGE ─────────────────────────────────────────────────────────────
+function ProfilePage({ user, call, showToast, onUpdate }) {
+  const [tab, setTab] = useState("info");
+  const [form, setForm] = useState({ name: user.name, email: user.email, no_hp: user.no_hp || "" });
+  const [passForm, setPassForm] = useState({ current_password: "", new_password: "", new_password_confirmation: "" });
+  const [saving, setSaving] = useState(false);
+  const s = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+  const sp = k => e => setPassForm(p => ({ ...p, [k]: e.target.value }));
+
+  const saveInfo = async e => {
+    e.preventDefault(); setSaving(true);
+    try {
+      const r = await call("/profile", { method: "PUT", body: JSON.stringify(form) });
+      showToast("Profil berhasil diperbarui ✅");
+      onUpdate(r.data); // update user di parent state
+    } catch (err) { showToast(err.message, "error"); }
+    finally { setSaving(false); }
+  };
+
+  const savePass = async e => {
+    e.preventDefault(); setSaving(true);
+    try {
+      await call("/profile/password", { method: "PUT", body: JSON.stringify(passForm) });
+      showToast("Password berhasil diganti ✅");
+      setPassForm({ current_password: "", new_password: "", new_password_confirmation: "" });
+    } catch (err) { showToast(err.message, "error"); }
+    finally { setSaving(false); }
+  };
+
+  const initials = user.name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+
+  return (
+    <div className="fade-up">
+      <PH title="Profil Saya" sub="Kelola informasi akun Anda" />
+
+      {/* Avatar card */}
+      <div className="card card-p" style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 24 }}>
+        <div className="avatar" style={{ width: 72, height: 72, fontSize: 26, background: "linear-gradient(135deg,var(--primary),var(--primary-mid))", borderRadius: "var(--r-lg)", flexShrink: 0 }}>{initials}</div>
+        <div>
+          <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{user.name}</div>
+          <div style={{ fontSize: 14, color: "var(--text-3)", marginBottom: 8 }}>{user.email}</div>
+          <span className={`badge ${user.role === "admin" ? "b-admin" : "b-pasien"}`}>{user.role}</span>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="card" style={{ maxWidth: 540 }}>
+        <div style={{ display: "flex", borderBottom: "1px solid var(--border)", padding: "0 4px" }}>
+          {[["info", "✏️ Edit Profil"], ["password", "🔒 Ganti Password"]].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              padding: "14px 20px", border: "none", background: "transparent", cursor: "pointer",
+              fontFamily: "var(--font)", fontSize: 13, fontWeight: 600,
+              color: tab === id ? "var(--primary)" : "var(--text-3)",
+              borderBottom: tab === id ? "2px solid var(--primary)" : "2px solid transparent",
+              marginBottom: -1, transition: "all .15s"
+            }}>{label}</button>
+          ))}
+        </div>
+
+        <div className="card-p">
+          {tab === "info" ? (
+            <form onSubmit={saveInfo}>
+              <Field label="Nama Lengkap" req><Inp value={form.name} onChange={s("name")} required /></Field>
+              <Field label="Email" req><Inp type="email" value={form.email} onChange={s("email")} required /></Field>
+              <Field label="No. HP"><Inp value={form.no_hp} onChange={s("no_hp")} placeholder="08xx-xxxx-xxxx" /></Field>
+              <hr className="divider" />
+              <button type="submit" className="btn btn-primary btn-full" disabled={saving}>
+                {saving ? "Menyimpan..." : "Simpan Perubahan"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={savePass}>
+              <div className="info-box ib-warn" style={{ fontSize: 13 }}>
+                ⚠️ Setelah ganti password, kamu perlu login ulang.
+              </div>
+              <Field label="Password Lama" req><Inp type="password" value={passForm.current_password} onChange={sp("current_password")} required placeholder="Password saat ini" /></Field>
+              <Field label="Password Baru" req><Inp type="password" value={passForm.new_password} onChange={sp("new_password")} required placeholder="Minimal 6 karakter" minLength={6} /></Field>
+              <Field label="Konfirmasi Password Baru" req><Inp type="password" value={passForm.new_password_confirmation} onChange={sp("new_password_confirmation")} required placeholder="Ulangi password baru" /></Field>
+              <hr className="divider" />
+              <button type="submit" className="btn btn-primary btn-full" disabled={saving}>
+                {saving ? "Menyimpan..." : "Ganti Password"}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const ADMIN_NAV = [
   ["home", "🏠", "Beranda"],
   ["dokters", "👨‍⚕️", "Dokter"],
@@ -1147,15 +1266,18 @@ const PAGE_TITLES = {
   reservasis: "Manajemen Reservasi", "rekam-medis": "Rekam Medis",
   "cari-dokter": "Cari Dokter", reservasi: "Buat Reservasi",
   "my-reservasi": "Reservasi Saya", "rekam-medis-pasien": "Rekam Medis Saya",
+  profile: "Profil Saya",
 };
 
-function Dashboard({ user, onLogout, callApi, active, setActive, showToast }) {
+function Dashboard({ user: initialUser, onLogout, callApi, active, setActive, showToast }) {
   const [open, setOpen] = useState(false);
+  const [dropdown, setDropdown] = useState(false); // ← user dropdown state
+  const [user, setUser] = useState(initialUser);
   const [dokterForReservasi, setDokterForReservasi] = useState(null);
   const isAdmin = user.role === "admin";
   const nav = isAdmin ? ADMIN_NAV : PASIEN_NAV;
   const call = (path, opts = {}, needKey = false) => callApi(path, opts, needKey);
-  const goto = sec => { setActive(sec); setOpen(false); };
+  const goto = sec => { setActive(sec); setOpen(false); setDropdown(false); };
   const initials = user.name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
   const content = () => {
@@ -1171,13 +1293,14 @@ function Dashboard({ user, onLogout, callApi, active, setActive, showToast }) {
       case "reservasi": return <ReservasiForm call={call} showToast={showToast} initialDokter={dokterForReservasi} onDone={() => goto("my-reservasi")} />;
       case "my-reservasi": return <MyReservasi call={call} showToast={showToast} />;
       case "rekam-medis-pasien": return <MyRekamMedis call={call} />;
+      case "profile": return <ProfilePage user={user} call={call} showToast={showToast} onUpdate={setUser} />;
       default: return <PasienHome user={user} call={call} setSection={goto} />;
     }
   };
 
   return (
     <div className="app-shell">
-      <div className={`sb-overlay ${open ? "open" : ""}`} onClick={() => setOpen(false)} />
+      <div className={`sb-overlay ${open ? "open" : ""}`} onClick={() => { setOpen(false); setDropdown(false); }} />
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <div className="sb-logo">
           <div className="sb-logo-icon">🏥</div>
@@ -1195,15 +1318,36 @@ function Dashboard({ user, onLogout, callApi, active, setActive, showToast }) {
           ))}
         </nav>
         <div className="sb-footer">
-          <div className="sb-user">
+          {/* Dropdown muncul di atas tombol user */}
+          {dropdown && (
+            <div className="user-dropdown">
+              <div className="ud-head">
+                <div className="ud-name">{user.name}</div>
+                <div className="ud-email">{user.email}</div>
+              </div>
+              <button className="ud-item" onClick={() => goto("profile")}>
+                👤 Edit Profil
+              </button>
+              <hr className="ud-divider" />
+              <button className="ud-item danger" onClick={onLogout}>
+                🚪 Keluar
+              </button>
+            </div>
+          )}
+
+          {/* Tombol user — klik untuk toggle dropdown */}
+          <button
+            className="sb-user-btn"
+            onClick={() => setDropdown(d => !d)}
+          >
             <div className="avatar av-lg">{initials}</div>
-            <div style={{ minWidth: 0 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
               <div className="sb-name">{user.name}</div>
               <div className="sb-email">{user.email}</div>
             </div>
-          </div>
-          <div style={{ marginBottom: 10 }}><Badge label={user.role} /></div>
-          <button className="btn-logout" onClick={onLogout}>Keluar</button>
+            {/* Chevron indicator */}
+            <span style={{ color: "rgba(255,255,255,.3)", fontSize: 14, flexShrink: 0, transform: dropdown ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▲</span>
+          </button>
         </div>
       </aside>
 

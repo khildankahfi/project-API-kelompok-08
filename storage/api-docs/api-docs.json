@@ -629,6 +629,128 @@
                 ]
             }
         },
+        "/profile": {
+            "get": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Ambil data profil pasien yang sedang login",
+                "operationId": "c6a79007a56511faa6f48397a2d15867",
+                "responses": {
+                    "200": {
+                        "description": "Data profil berhasil diambil"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Update profil pasien (nama, email, no_hp)",
+                "operationId": "74599296b1816be41ad4228975229966",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Budi Santoso Baru"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "budibaru@example.com"
+                                    },
+                                    "no_hp": {
+                                        "type": "string",
+                                        "example": "081299998888"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profil berhasil diperbarui"
+                    },
+                    "422": {
+                        "description": "Validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/profile/password": {
+            "put": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Ganti password pasien",
+                "description": "Butuh verifikasi password lama sebelum set password baru.",
+                "operationId": "40f40b3f02ad252300bd78e362f6ef95",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "current_password",
+                                    "new_password",
+                                    "new_password_confirmation"
+                                ],
+                                "properties": {
+                                    "current_password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    },
+                                    "new_password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword456"
+                                    },
+                                    "new_password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "newpassword456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password berhasil diganti"
+                    },
+                    "422": {
+                        "description": "Password lama salah atau validasi gagal"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/rekam-medis": {
             "get": {
                 "tags": [
@@ -900,13 +1022,11 @@
                     "Reservasi"
                 ],
                 "summary": "Daftar reservasi milik sendiri",
-                "description": "Pasien hanya dapat melihat reservasi milik sendiri. Support filter status dan pagination.",
                 "operationId": "b804709c05b64f9770b6f410263b4002",
                 "parameters": [
                     {
                         "name": "status",
                         "in": "query",
-                        "description": "Filter status",
                         "required": false,
                         "schema": {
                             "type": "string",
@@ -956,7 +1076,6 @@
                     "Reservasi"
                 ],
                 "summary": "Buat reservasi baru",
-                "description": "user_id diambil otomatis dari JWT token. nomor_antrian digenerate otomatis.",
                 "operationId": "fa7d4731e50377f299d6ff5b9fba94ce",
                 "requestBody": {
                     "required": true,
@@ -996,37 +1115,7 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "Reservasi berhasil dibuat",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "example": "success"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Reservasi berhasil dibuat."
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "nomor_antrian": {
-                                                    "type": "string",
-                                                    "example": "ANT-K7PQ2M"
-                                                },
-                                                "status": {
-                                                    "type": "string",
-                                                    "example": "pending"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Reservasi berhasil dibuat"
                     },
                     "401": {
                         "description": "Unauthenticated"
@@ -1064,11 +1153,8 @@
                     "200": {
                         "description": "Detail reservasi beserta rekam medis jika sudah ada"
                     },
-                    "401": {
-                        "description": "Unauthenticated"
-                    },
                     "404": {
-                        "description": "Reservasi tidak ditemukan"
+                        "description": "Tidak ditemukan"
                     }
                 },
                 "security": [
@@ -1081,8 +1167,7 @@
                 "tags": [
                     "Reservasi"
                 ],
-                "summary": "Batalkan reservasi (pasien only)",
-                "description": "Pasien hanya bisa membatalkan reservasi yang masih berstatus 'pending'.",
+                "summary": "Batalkan reservasi milik sendiri (hanya status pending)",
                 "operationId": "cb9a05645b50c60706bda3c6c4f71653",
                 "parameters": [
                     {
@@ -1119,7 +1204,7 @@
                         "description": "Reservasi berhasil dibatalkan"
                     },
                     "422": {
-                        "description": "Status bukan pending, tidak bisa dibatalkan"
+                        "description": "Status bukan pending"
                     }
                 },
                 "security": [
@@ -1132,7 +1217,7 @@
                 "tags": [
                     "Reservasi"
                 ],
-                "summary": "Hapus reservasi (hanya yang masih pending)",
+                "summary": "Hapus reservasi (hanya pending)",
                 "operationId": "4ca2c7b43f23e652d2d25c549099bc3f",
                 "parameters": [
                     {
@@ -1150,7 +1235,7 @@
                         "description": "Reservasi berhasil dihapus"
                     },
                     "404": {
-                        "description": "Tidak ditemukan atau bukan milik sendiri"
+                        "description": "Tidak ditemukan"
                     }
                 },
                 "security": [
@@ -1222,9 +1307,6 @@
                     "200": {
                         "description": "Semua reservasi"
                     },
-                    "401": {
-                        "description": "Unauthenticated / API Key salah"
-                    },
                     "403": {
                         "description": "Bukan admin"
                     }
@@ -1242,7 +1324,8 @@
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Update status reservasi (admin only)",
+                "summary": "Update status reservasi + kirim email notifikasi ke pasien",
+                "description": "Otomatis kirim email ke pasien saat status berubah ke 'dikonfirmasi' atau 'dibatalkan'.",
                 "operationId": "2b25789f653439b303da0bfed69c4ca7",
                 "parameters": [
                     {
@@ -1279,7 +1362,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Status berhasil diperbarui"
+                        "description": "Status diperbarui + email terkirim"
                     },
                     "403": {
                         "description": "Bukan admin"
@@ -1333,6 +1416,10 @@
         {
             "name": "Rekam Medis",
             "description": "Rekam medis — admin only"
+        },
+        {
+            "name": "Profile",
+            "description": "Profile"
         }
     ]
 }

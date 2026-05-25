@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use OpenApi\Annotations as OA;
 use App\Http\Controllers\Controller;
 use App\Http\Traits\PaginationHelper;
 use App\Models\Reservasi;
+use App\Notifications\ReservasiDibatalkan;
+use App\Notifications\ReservasiDikonfirmasi;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -19,9 +20,8 @@ class ReservasiController extends Controller
      *     path="/reservasis",
      *     tags={"Reservasi"},
      *     summary="Daftar reservasi milik sendiri",
-     *     description="Pasien hanya dapat melihat reservasi milik sendiri. Support filter status dan pagination.",
      *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="status",   in="query", description="Filter status", required=false, @OA\Schema(type="string", enum={"pending","dikonfirmasi","selesai","dibatalkan"})),
+     *     @OA\Parameter(name="status",   in="query", required=false, @OA\Schema(type="string", enum={"pending","dikonfirmasi","selesai","dibatalkan"})),
      *     @OA\Parameter(name="page",     in="query", required=false, @OA\Schema(type="integer", example=1)),
      *     @OA\Parameter(name="per_page", in="query", required=false, @OA\Schema(type="integer", example=10)),
      *     @OA\Response(response=200, description="Daftar reservasi"),
@@ -46,7 +46,6 @@ class ReservasiController extends Controller
      *     path="/reservasis",
      *     tags={"Reservasi"},
      *     summary="Buat reservasi baru",
-     *     description="user_id diambil otomatis dari JWT token. nomor_antrian digenerate otomatis.",
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
@@ -58,18 +57,7 @@ class ReservasiController extends Controller
      *             @OA\Property(property="keluhan",           type="string",  example="Demam tinggi selama 3 hari", minLength=10)
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=201,
-     *         description="Reservasi berhasil dibuat",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="status",  type="string", example="success"),
-     *             @OA\Property(property="message", type="string", example="Reservasi berhasil dibuat."),
-     *             @OA\Property(property="data", type="object",
-     *                 @OA\Property(property="nomor_antrian", type="string", example="ANT-K7PQ2M"),
-     *                 @OA\Property(property="status",        type="string", example="pending")
-     *             )
-     *         )
-     *     ),
+     *     @OA\Response(response=201, description="Reservasi berhasil dibuat"),
      *     @OA\Response(response=401, description="Unauthenticated"),
      *     @OA\Response(response=422, description="Validasi gagal")
      * )
@@ -113,13 +101,12 @@ class ReservasiController extends Controller
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
      *     @OA\Response(response=200, description="Detail reservasi beserta rekam medis jika sudah ada"),
-     *     @OA\Response(response=401, description="Unauthenticated"),
-     *     @OA\Response(response=404, description="Reservasi tidak ditemukan")
+     *     @OA\Response(response=404, description="Tidak ditemukan")
      * )
      */
     public function show(int $id): JsonResponse
     {
-        $reservasi = Reservasi::with(['dokter', 'jadwal', 'rekamMedis.dokter'])
+        $reservasi = Reservasi::with(['dokter', 'jadwal', 'rekamMedis'])
             ->where('user_id', auth()->id())
             ->findOrFail($id);
 
@@ -130,8 +117,7 @@ class ReservasiController extends Controller
      * @OA\Put(
      *     path="/reservasis/{id}",
      *     tags={"Reservasi"},
-     *     summary="Batalkan reservasi (pasien only)",
-     *     description="Pasien hanya bisa membatalkan reservasi yang masih berstatus 'pending'.",
+     *     summary="Batalkan reservasi milik sendiri (hanya status pending)",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
      *     @OA\RequestBody(
@@ -139,7 +125,7 @@ class ReservasiController extends Controller
      *         @OA\JsonContent(@OA\Property(property="status", type="string", enum={"dibatalkan"}, example="dibatalkan"))
      *     ),
      *     @OA\Response(response=200, description="Reservasi berhasil dibatalkan"),
-     *     @OA\Response(response=422, description="Status bukan pending, tidak bisa dibatalkan")
+     *     @OA\Response(response=422, description="Status bukan pending")
      * )
      */
     public function update(Request $request, int $id): JsonResponse
@@ -156,6 +142,13 @@ class ReservasiController extends Controller
         $request->validate(['status' => 'required|in:dibatalkan']);
         $reservasi->update(['status' => 'dibatalkan']);
 
+        // Kirim notifikasi email pembatalan ke pasien
+        try {
+            $reservasi->user->notify(new ReservasiDibatalkan($reservasi));
+        } catch (\Exception) {
+            // Gagal kirim email tidak boleh gagalkan response API
+        }
+
         return response()->json([
             'status'  => 'success',
             'message' => 'Reservasi berhasil dibatalkan.',
@@ -167,11 +160,11 @@ class ReservasiController extends Controller
      * @OA\Delete(
      *     path="/reservasis/{id}",
      *     tags={"Reservasi"},
-     *     summary="Hapus reservasi (hanya yang masih pending)",
+     *     summary="Hapus reservasi (hanya pending)",
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
      *     @OA\Response(response=200, description="Reservasi berhasil dihapus"),
-     *     @OA\Response(response=404, description="Tidak ditemukan atau bukan milik sendiri")
+     *     @OA\Response(response=404, description="Tidak ditemukan")
      * )
      */
     public function destroy(int $id): JsonResponse
@@ -184,7 +177,7 @@ class ReservasiController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Reservasi berhasil dihapus.']);
     }
 
-    // ═══ ADMIN ═══════════════════════════════════════════════════════
+    // ═══ ADMIN ════════════════════════════════════════════════════════
 
     /**
      * @OA\Get(
@@ -198,7 +191,6 @@ class ReservasiController extends Controller
      *     @OA\Parameter(name="page",      in="query", required=false, @OA\Schema(type="integer", example=1)),
      *     @OA\Parameter(name="per_page",  in="query", required=false, @OA\Schema(type="integer", example=15)),
      *     @OA\Response(response=200, description="Semua reservasi"),
-     *     @OA\Response(response=401, description="Unauthenticated / API Key salah"),
      *     @OA\Response(response=403, description="Bukan admin")
      * )
      */
@@ -217,32 +209,52 @@ class ReservasiController extends Controller
      * @OA\Patch(
      *     path="/admin/reservasis/{id}/status",
      *     tags={"Admin"},
-     *     summary="Update status reservasi (admin only)",
+     *     summary="Update status reservasi + kirim email notifikasi ke pasien",
+     *     description="Otomatis kirim email ke pasien saat status berubah ke 'dikonfirmasi' atau 'dibatalkan'.",
      *     security={{"bearerAuth":{}, "apiKeyAuth":{}}},
      *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             @OA\Property(property="status", type="string", enum={"pending","dikonfirmasi","selesai","dibatalkan"}, example="dikonfirmasi")
+     *             @OA\Property(property="status", type="string",
+     *                 enum={"pending","dikonfirmasi","selesai","dibatalkan"},
+     *                 example="dikonfirmasi")
      *         )
      *     ),
-     *     @OA\Response(response=200, description="Status berhasil diperbarui"),
+     *     @OA\Response(response=200, description="Status diperbarui + email terkirim"),
      *     @OA\Response(response=403, description="Bukan admin"),
      *     @OA\Response(response=404, description="Reservasi tidak ditemukan")
      * )
      */
     public function updateStatus(Request $request, int $id): JsonResponse
     {
-        $reservasi = Reservasi::findOrFail($id);
+        $reservasi  = Reservasi::with('user')->findOrFail($id);
+        $statusLama = $reservasi->status;
+
         $validated = $request->validate([
             'status' => 'required|in:pending,dikonfirmasi,selesai,dibatalkan',
         ]);
 
         $reservasi->update(['status' => $validated['status']]);
 
+        // ── Kirim email notifikasi berdasarkan perubahan status ──────────
+        // Dibungkus try-catch agar kegagalan email tidak gagalkan response
+        try {
+            match ($validated['status']) {
+                'dikonfirmasi' => $reservasi->user->notify(new ReservasiDikonfirmasi($reservasi)),
+                'dibatalkan'   => $reservasi->user->notify(new ReservasiDibatalkan($reservasi)),
+                default        => null, // selesai & pending tidak perlu notif
+            };
+        } catch (\Exception) {}
+
+        $emailInfo = match ($validated['status']) {
+            'dikonfirmasi', 'dibatalkan' => ' Email notifikasi telah dikirim ke pasien.',
+            default                      => '',
+        };
+
         return response()->json([
             'status'  => 'success',
-            'message' => 'Status reservasi berhasil diperbarui.',
+            'message' => "Status reservasi berhasil diperbarui.{$emailInfo}",
             'data'    => $reservasi->fresh(['user', 'dokter', 'jadwal']),
         ]);
     }
