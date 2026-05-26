@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getCache, setCache, invalidate, INVALIDATE_MAP } from "./apiCache.js";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const BASE = "http://127.0.0.1:8000/api";
 
@@ -495,38 +496,167 @@ function RegisterPage({ onRegister, onGoto, loading, error }) {
 
 // ─── ADMIN SECTIONS ───────────────────────────────────────────────────────────
 function AdminHome({ call, user }) {
-  const [s, setS] = useState({ d: null, j: null, r: null, rv: null });
+  const [stats, setStats] = useState({ d: null, j: null, r: null, rv: null });
+  const [reservasis, setReservasis] = useState([]);
+  const [chartReady, setChartReady] = useState(false);
 
   useEffect(() => {
-    // Load setiap stat secara independen agar satu error tidak blokir yang lain
-    call("/dokters").then(d => setS(p => ({ ...p, d: d.data.length }))).catch(() => setS(p => ({ ...p, d: "—" })));
-    call("/jadwals").then(j => setS(p => ({ ...p, j: j.data.length }))).catch(() => setS(p => ({ ...p, j: "—" })));
-    call("/rekam-medis", {}, true).then(r => setS(p => ({ ...p, r: r.data.length }))).catch(() => setS(p => ({ ...p, r: "—" })));
-    call("/admin/reservasis", {}, true).then(rv => setS(p => ({ ...p, rv: rv.data.length }))).catch(() => setS(p => ({ ...p, rv: "—" })));
+    call("/dokters").then(d => setStats(p => ({ ...p, d: d.data.length }))).catch(() => setStats(p => ({ ...p, d: "—" })));
+    call("/jadwals").then(j => setStats(p => ({ ...p, j: j.data.length }))).catch(() => setStats(p => ({ ...p, j: "—" })));
+    call("/rekam-medis", {}, true).then(r => setStats(p => ({ ...p, r: r.data.length }))).catch(() => setStats(p => ({ ...p, r: "—" })));
+    call("/admin/reservasis", {}, true).then(rv => {
+      setStats(p => ({ ...p, rv: rv.data.length }));
+      setReservasis(rv.data || []);
+      setChartReady(true);
+    }).catch(() => setStats(p => ({ ...p, rv: "—" })));
   }, []);
 
-  const stats = [
-    { ic: "👨‍⚕️", lb: "Total Dokter", val: s.d },
-    { ic: "📅", lb: "Total Jadwal", val: s.j },
-    { ic: "📋", lb: "Total Reservasi", val: s.rv },
-    { ic: "🏥", lb: "Rekam Medis", val: s.r },
+  // ── Data untuk Pie Chart status reservasi ──────────────────────────
+  const statusCount = ["pending", "dikonfirmasi", "selesai", "dibatalkan"].map(st => ({
+    name: st.charAt(0).toUpperCase() + st.slice(1),
+    value: reservasis.filter(r => r.status === st).length,
+  })).filter(d => d.value > 0);
+
+  const PIE_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#ef4444"];
+
+  // ── Data untuk Bar Chart reservasi 7 hari terakhir ─────────────────
+  const barData = (() => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split("T")[0];
+      const lbl = d.toLocaleDateString("id-ID", { weekday: "short", day: "numeric" });
+      days.push({
+        name: lbl,
+        total: reservasis.filter(r => r.tanggal_reservasi === key).length,
+      });
+    }
+    return days;
+  })();
+
+  // ── Reservasi pending terbaru (max 5) ──────────────────────────────
+  const pending = reservasis.filter(r => r.status === "pending").slice(0, 5);
+
+  const statCards = [
+    { ic: "👨‍⚕️", lb: "Total Dokter", val: stats.d, color: "#0a7c6e" },
+    { ic: "📅", lb: "Total Jadwal", val: stats.j, color: "#3b82f6" },
+    { ic: "📋", lb: "Total Reservasi", val: stats.rv, color: "#f59e0b" },
+    { ic: "🏥", lb: "Rekam Medis", val: stats.r, color: "#10b981" },
   ];
+
 
   return (
     <div className="fade-up">
-      <div style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8 }}>Selamat datang, {user.name} 👋</h2>
-        <p style={{ color: "var(--text-3)", fontSize: 15 }}>Panel Administrasi Klinik Sehat</p>
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>Selamat datang, {user.name} 👋</h2>
+        <p style={{ color: "var(--text-3)", fontSize: 14 }}>
+          {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          {" · "}Panel Administrasi Klinik Sehat
+        </p>
       </div>
-      <div className="stat-grid">
-        {stats.map(({ ic, lb, val }) => (
-          <div className="stat-card" key={lb}>
-            <div className="stat-icon">{ic}</div>
-            <div className="stat-lbl">{lb}</div>
-            <div className="stat-val">{val === null ? <span className="spinner" style={{ width: 28, height: 28 }} /> : val}</div>
+
+      {/* Stat Cards */}
+      <div className="stat-grid" style={{ marginBottom: 28 }}>
+        {statCards.map(({ ic, lb, val, color }) => (
+          <div className="stat-card" key={lb} style={{ "--accent": color }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div className="stat-lbl">{lb}</div>
+                <div className="stat-val" style={{ color }}>
+                  {val === null ? <span className="spinner" style={{ width: 28, height: 28 }} /> : val}
+                </div>
+              </div>
+              <div style={{ fontSize: 36, opacity: .8 }}>{ic}</div>
+            </div>
           </div>
         ))}
       </div>
+
+      {/* Charts Row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 28 }}>
+
+        {/* Bar Chart — Reservasi 7 Hari */}
+        <div className="card card-p">
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 20, color: "var(--text-1)" }}>
+            📊 Reservasi 7 Hari Terakhir
+          </div>
+          {chartReady ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={barData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--text-3)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "var(--text-3)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13 }}
+                  formatter={v => [v, "Reservasi"]}
+                />
+                <Bar dataKey="total" fill="#0a7c6e" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div className="spinner" />
+            </div>
+          )}
+        </div>
+
+        {/* Pie Chart — Status Reservasi */}
+        <div className="card card-p">
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 20, color: "var(--text-1)" }}>
+            🥧 Status Reservasi
+          </div>
+          {chartReady ? (
+            statusCount.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={statusCount} cx="50%" cy="50%" innerRadius={55} outerRadius={85}
+                    dataKey="value" paddingAngle={3}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {statusCount.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13 }}
+                    formatter={v => [v + " reservasi"]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-3)", fontSize: 14 }}>
+                Belum ada data reservasi
+              </div>
+            )
+          ) : (
+            <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div className="spinner" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Pending Reservasi */}
+      {pending.length > 0 && (
+        <div className="card">
+          <div style={{ padding: "18px 24px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>
+              🔔 Menunggu Konfirmasi
+              <span style={{ marginLeft: 8, background: "#fef3c7", color: "#92400e", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99 }}>{pending.length}</span>
+            </div>
+          </div>
+          <Table
+            cols={[
+              { key: "nomor_antrian", label: "No. Antrian", render: v => <span className="mono" style={{ color: "var(--primary)", fontWeight: 700 }}>{v}</span> },
+              { key: "user", label: "Pasien", render: v => v?.name || "—" },
+              { key: "dokter", label: "Dokter", render: v => v?.nama || "—" },
+              { key: "tanggal_reservasi", label: "Tanggal" },
+            ]}
+            data={pending}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -889,46 +1019,207 @@ function RekamMedisMgmt({ call }) {
 // ─── PASIEN SECTIONS ──────────────────────────────────────────────────────────
 function PasienHome({ user, call, setSection }) {
   const [reservasis, setReservasis] = useState([]);
+  const [dokters, setDokters] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    call("/reservasis").then(r => setReservasis(r.data.slice(0, 4))).catch(() => { });
+    Promise.allSettled([
+      call("/reservasis"),
+      call("/dokters"),
+    ]).then(([rv, dk]) => {
+      if (rv.status === "fulfilled") setReservasis(rv.value.data || []);
+      if (dk.status === "fulfilled") setDokters(dk.value.data?.slice(0, 3) || []);
+      setLoading(false);
+    });
   }, []);
-  const shortcuts = [
-    { label: "Cari Dokter", icon: "👨‍⚕️", sec: "cari-dokter", sub: "Temukan spesialis" },
-    { label: "Buat Reservasi", icon: "📅", sec: "reservasi", sub: "Buat janji temu" },
-    { label: "Reservasi Saya", icon: "📋", sec: "my-reservasi", sub: "Riwayat janji" },
-    { label: "Rekam Medis", icon: "🏥", sec: "rekam-medis-pasien", sub: "Hasil pemeriksaan" },
-  ];
+
+  // Hitung statistik pasien
+  const totalReservasi = reservasis.length;
+  const pending = reservasis.filter(r => r.status === "pending").length;
+  const selesai = reservasis.filter(r => r.status === "selesai").length;
+  const reservasiAktif = reservasis.find(r => r.status === "dikonfirmasi" || r.status === "pending");
+
+  const greetHour = new Date().getHours();
+  const greet = greetHour < 11 ? "Selamat Pagi" : greetHour < 15 ? "Selamat Siang" : greetHour < 18 ? "Selamat Sore" : "Selamat Malam";
+
   return (
     <div className="fade-up">
-      <div style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8 }}>Halo, {user.name} 👋</h2>
-        <p style={{ color: "var(--text-3)", fontSize: 15 }}>Selamat datang di Portal Pasien Klinik Sehat</p>
+
+      {/* ── HERO BANNER ─────────────────────────────────────────── */}
+      <div style={{
+        background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-mid) 100%)",
+        borderRadius: "var(--r-xl)", padding: "32px 36px", marginBottom: 28,
+        position: "relative", overflow: "hidden", color: "#fff",
+      }}>
+        {/* Dekorasi lingkaran */}
+        <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, background: "rgba(255,255,255,.07)", borderRadius: "50%" }} />
+        <div style={{ position: "absolute", bottom: -60, right: 80, width: 140, height: 140, background: "rgba(255,255,255,.05)", borderRadius: "50%" }} />
+
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <p style={{ fontSize: 14, opacity: .75, marginBottom: 6 }}>
+            {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
+          <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>{greet}, {user.name.split(" ")[0]}! 👋</h2>
+          <p style={{ fontSize: 14, opacity: .8, marginBottom: 24, maxWidth: 420 }}>
+            Kesehatan Anda adalah prioritas kami. Buat janji temu atau cek status kunjungan Anda di sini.
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button onClick={() => setSection("reservasi")} style={{
+              background: "#fff", color: "var(--primary)", border: "none",
+              padding: "11px 22px", borderRadius: "var(--r-md)", fontWeight: 700,
+              fontSize: 14, cursor: "pointer", fontFamily: "var(--font)",
+              boxShadow: "0 4px 14px rgba(0,0,0,.15)", transition: "all .15s",
+            }}>
+              📅 Buat Janji Temu
+            </button>
+            <button onClick={() => setSection("cari-dokter")} style={{
+              background: "rgba(255,255,255,.15)", color: "#fff", border: "1.5px solid rgba(255,255,255,.3)",
+              padding: "11px 22px", borderRadius: "var(--r-md)", fontWeight: 700,
+              fontSize: 14, cursor: "pointer", fontFamily: "var(--font)", transition: "all .15s",
+            }}>
+              👨‍⚕️ Cari Dokter
+            </button>
+          </div>
+        </div>
       </div>
-      <div className="shortcut-grid">
-        {shortcuts.map(s => (
-          <button key={s.label} className="shortcut-card" onClick={() => setSection(s.sec)}>
-            <div style={{ fontSize: 32, marginBottom: 14 }}>{s.icon}</div>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 5, color: "var(--text-1)" }}>{s.label}</div>
-            <div style={{ fontSize: 13, color: "var(--text-3)" }}>{s.sub}</div>
-          </button>
+
+      {/* ── STAT CARDS ──────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 28 }}>
+        {[
+          { ic: "📋", lb: "Total Janji Temu", val: totalReservasi, color: "#0a7c6e", bg: "#e6f7f4" },
+          { ic: "⏳", lb: "Menunggu", val: pending, color: "#d97706", bg: "#fffbeb" },
+          { ic: "✅", lb: "Selesai", val: selesai, color: "#10b981", bg: "#ecfdf5" },
+        ].map(({ ic, lb, val, color, bg }) => (
+          <div key={lb} style={{
+            background: "var(--surface)", border: "1px solid var(--border)",
+            borderRadius: "var(--r-lg)", padding: "20px 22px",
+            boxShadow: "var(--sh-sm)",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 8 }}>{lb}</div>
+                <div style={{ fontSize: 34, fontWeight: 800, color, lineHeight: 1 }}>
+                  {loading ? <span className="spinner" style={{ width: 22, height: 22 }} /> : val}
+                </div>
+              </div>
+              <div style={{ width: 44, height: 44, background: bg, borderRadius: "var(--r-md)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{ic}</div>
+            </div>
+          </div>
         ))}
       </div>
-      {reservasis.length > 0 && (
-        <>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Reservasi Terbaru</h3>
-          <div className="card">
-            <Table
-              cols={[
-                { key: "nomor_antrian", label: "No. Antrian", render: v => <span className="mono" style={{ color: "var(--primary)", fontWeight: 700 }}>{v}</span> },
-                { key: "dokter", label: "Dokter", render: v => v?.nama || "—" },
-                { key: "tanggal_reservasi", label: "Tanggal" },
-                { key: "status", label: "Status", render: v => <Badge label={v} /> },
-              ]}
-              data={reservasis}
-            />
+
+      {/* ── RESERVASI AKTIF ─────────────────────────────────────── */}
+      {reservasiAktif && (
+        <div style={{
+          background: "linear-gradient(135deg,#ecfdf5,#d1fae5)",
+          border: "1.5px solid #a7f3d0", borderRadius: "var(--r-lg)",
+          padding: "20px 24px", marginBottom: 28,
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ fontSize: 36 }}>🗓️</div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#065f46", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Janji Temu Aktif</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#064e3b", marginBottom: 2 }}>
+                {reservasiAktif.dokter?.nama || "—"}
+              </div>
+              <div style={{ fontSize: 13, color: "#047857" }}>
+                {reservasiAktif.tanggal_reservasi} &nbsp;·&nbsp;
+                <span className="badge b-dikonfirmasi" style={{ fontSize: 11 }}>{reservasiAktif.status}</span>
+              </div>
+            </div>
           </div>
-        </>
+          <button onClick={() => setSection("my-reservasi")} style={{
+            background: "var(--primary)", color: "#fff", border: "none",
+            padding: "10px 20px", borderRadius: "var(--r-sm)", fontWeight: 700,
+            fontSize: 13, cursor: "pointer", fontFamily: "var(--font)", whiteSpace: "nowrap",
+          }}>Lihat Detail →</button>
+        </div>
       )}
+
+      {/* ── QUICK ACCESS + DOKTER ───────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+
+        {/* Quick Access */}
+        <div>
+          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14, color: "var(--text-1)" }}>⚡ Akses Cepat</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              { ic: "📅", lb: "Buat Janji Temu", sub: "Pilih dokter & jadwal", sec: "reservasi", color: "#0a7c6e" },
+              { ic: "📋", lb: "Riwayat Kunjungan", sub: "Cek status janji temu", sec: "my-reservasi", color: "#3b82f6" },
+              { ic: "🏥", lb: "Rekam Medis Saya", sub: "Hasil pemeriksaan dokter", sec: "rekam-medis-pasien", color: "#10b981" },
+              { ic: "👨‍⚕️", lb: "Direktori Dokter", sub: "Cari spesialis terbaik", sec: "cari-dokter", color: "#7c3aed" },
+            ].map(({ ic, lb, sub, sec, color }) => (
+              <button key={sec} onClick={() => setSection(sec)} style={{
+                display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
+                background: "var(--surface)", border: "1.5px solid var(--border)",
+                borderRadius: "var(--r-md)", cursor: "pointer", textAlign: "left",
+                fontFamily: "var(--font)", transition: "all .15s", width: "100%",
+              }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.background = `${color}0d`; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--surface)"; }}
+              >
+                <div style={{ width: 40, height: 40, background: `${color}15`, borderRadius: "var(--r-sm)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{ic}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-1)", marginBottom: 2 }}>{lb}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-3)" }}>{sub}</div>
+                </div>
+                <div style={{ marginLeft: "auto", color: "var(--text-4)", fontSize: 16, flexShrink: 0 }}>›</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Dokter Tersedia */}
+        <div>
+          <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14, color: "var(--text-1)" }}>👨‍⚕️ Dokter Tersedia</h3>
+          {loading ? <Loading /> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {dokters.map(d => (
+                <div key={d.id} style={{
+                  background: "var(--surface)", border: "1px solid var(--border)",
+                  borderRadius: "var(--r-md)", padding: "14px 16px",
+                  display: "flex", alignItems: "center", gap: 14, boxShadow: "var(--sh-sm)",
+                }}>
+                  <div style={{ width: 44, height: 44, background: "linear-gradient(135deg,var(--primary),var(--primary-mid))", borderRadius: "var(--r-sm)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>👨‍⚕️</div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-1)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.nama}</div>
+                    <div style={{ fontSize: 12, color: "var(--primary)", fontWeight: 600, marginBottom: 4 }}>{d.spesialisasi}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-3)" }}>Rp {Number(d.biaya_konsultasi).toLocaleString("id-ID")}</div>
+                  </div>
+                  <button onClick={() => setSection("cari-dokter")} style={{
+                    background: "var(--primary-light)", color: "var(--primary)",
+                    border: "none", padding: "7px 12px", borderRadius: "var(--r-sm)",
+                    fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "var(--font)", whiteSpace: "nowrap",
+                  }}>Buat Janji</button>
+                </div>
+              ))}
+              <button onClick={() => setSection("cari-dokter")} style={{
+                background: "transparent", border: "1.5px dashed var(--border-strong)",
+                borderRadius: "var(--r-md)", padding: "12px", cursor: "pointer",
+                fontSize: 13, color: "var(--text-3)", fontFamily: "var(--font)",
+                fontWeight: 600, transition: "all .15s",
+              }}>Lihat semua dokter →</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── TIPS KESEHATAN ──────────────────────────────────────── */}
+      <div style={{
+        background: "var(--surface)", border: "1px solid var(--border)",
+        borderRadius: "var(--r-lg)", padding: "20px 24px", marginTop: 24,
+        display: "flex", gap: 16, alignItems: "flex-start",
+      }}>
+        <div style={{ fontSize: 32, flexShrink: 0 }}>💡</div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-1)", marginBottom: 6 }}>Tips Kesehatan Hari Ini</div>
+          <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.7 }}>
+            Minum air putih minimal 8 gelas per hari, tidur 7–8 jam, dan lakukan pemeriksaan kesehatan rutin setiap 6 bulan
+            untuk menjaga kesehatan optimal Anda.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1257,15 +1548,15 @@ const ADMIN_NAV = [
 const PASIEN_NAV = [
   ["home", "🏠", "Beranda"],
   ["cari-dokter", "👨‍⚕️", "Cari Dokter"],
-  ["reservasi", "📅", "Buat Reservasi"],
-  ["my-reservasi", "📋", "Reservasi Saya"],
+  ["reservasi", "📅", "Buat Janji Temu"],
+  ["my-reservasi", "📋", "Kunjungan Saya"],
   ["rekam-medis-pasien", "🏥", "Rekam Medis Saya"],
 ];
 const PAGE_TITLES = {
   home: "Beranda", dokters: "Manajemen Dokter", jadwals: "Manajemen Jadwal",
   reservasis: "Manajemen Reservasi", "rekam-medis": "Rekam Medis",
-  "cari-dokter": "Cari Dokter", reservasi: "Buat Reservasi",
-  "my-reservasi": "Reservasi Saya", "rekam-medis-pasien": "Rekam Medis Saya",
+  "cari-dokter": "Cari Dokter", reservasi: "Buat Janji Temu",
+  "my-reservasi": "Kunjungan Saya", "rekam-medis-pasien": "Rekam Medis Saya",
   profile: "Profil Saya",
 };
 
