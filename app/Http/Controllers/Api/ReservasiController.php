@@ -6,27 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Traits\PaginationHelper;
 use App\Models\Reservasi;
 use App\Notifications\ReservasiDibatalkan;
-use App\Notifications\ReservasiDikonfirmasi;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class ReservasiController extends Controller
 {
     use PaginationHelper;
 
+    // Map nama hari Indonesia → nomor hari PHP (0=Minggu, 1=Senin, dst)
+    private const HARI_MAP = [
+        'Minggu' => 0, 'Senin' => 1, 'Selasa' => 2,
+        'Rabu'   => 3, 'Kamis' => 4, 'Jumat'  => 5, 'Sabtu' => 6,
+    ];
+
     /**
-     * @OA\Get(
-     *     path="/reservasis",
-     *     tags={"Reservasi"},
-     *     summary="Daftar reservasi milik sendiri",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="status",   in="query", required=false, @OA\Schema(type="string", enum={"pending","dikonfirmasi","selesai","dibatalkan"})),
-     *     @OA\Parameter(name="page",     in="query", required=false, @OA\Schema(type="integer", example=1)),
-     *     @OA\Parameter(name="per_page", in="query", required=false, @OA\Schema(type="integer", example=10)),
-     *     @OA\Response(response=200, description="Daftar reservasi"),
-     *     @OA\Response(response=401, description="Unauthenticated")
-     * )
+     * GET /api/reservasis?status=menunggu&page=1
      */
     public function index(Request $request): JsonResponse
     {
@@ -42,25 +36,13 @@ class ReservasiController extends Controller
     }
 
     /**
-     * @OA\Post(
-     *     path="/reservasis",
-     *     tags={"Reservasi"},
-     *     summary="Buat reservasi baru",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             required={"dokter_id","jadwal_id","tanggal_reservasi","keluhan"},
-     *             @OA\Property(property="dokter_id",         type="integer", example=1),
-     *             @OA\Property(property="jadwal_id",         type="integer", example=1),
-     *             @OA\Property(property="tanggal_reservasi", type="string",  format="date", example="2026-06-10"),
-     *             @OA\Property(property="keluhan",           type="string",  example="Demam tinggi selama 3 hari", minLength=10)
-     *         )
-     *     ),
-     *     @OA\Response(response=201, description="Reservasi berhasil dibuat"),
-     *     @OA\Response(response=401, description="Unauthenticated"),
-     *     @OA\Response(response=422, description="Validasi gagal")
-     * )
+     * POST /api/reservasis
+     *
+     * Alur baru:
+     * 1. Validasi hari — tanggal_reservasi harus sesuai hari jadwal
+     * 2. Cek kuota — hitung reservasi aktif hari itu, tolak kalau penuh
+     * 3. Generate nomor antrian berdasarkan urutan (ANT-01, ANT-02, ...)
+     * 4. Status langsung 'menunggu' (tidak perlu konfirmasi admin)
      */
     public function store(Request $request): JsonResponse
     {
@@ -71,10 +53,42 @@ class ReservasiController extends Controller
             'keluhan'           => 'required|string|min:10|max:1000',
         ]);
 
+        // ── Ambil jadwal & verifikasi milik dokter ────────────────────────
         $jadwal = \App\Models\Jadwal::where('id', $validated['jadwal_id'])
             ->where('dokter_id', $validated['dokter_id'])
             ->where('is_aktif', true)
             ->firstOrFail();
+
+        // ── Validasi hari: tanggal harus cocok dengan hari jadwal ─────────
+        $hariJadwal   = $jadwal->hari;
+        $hariTanggal  = (int) date('w', strtotime($validated['tanggal_reservasi']));
+        $hariExpected = self::HARI_MAP[$hariJadwal] ?? -1;
+
+        if ($hariTanggal !== $hariExpected) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Tanggal yang dipilih bukan hari {$hariJadwal}. Silakan pilih tanggal yang sesuai dengan jadwal praktik.",
+            ], 422);
+        }
+
+        // ── Cek kuota harian ──────────────────────────────────────────────
+        $terdaftar = Reservasi::where('jadwal_id', $jadwal->id)
+            ->where('tanggal_reservasi', $validated['tanggal_reservasi'])
+            ->whereNotIn('status', ['dibatalkan'])
+            ->count();
+
+        if ($terdaftar >= $jadwal->kuota) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Antrian untuk jadwal ini pada tanggal tersebut sudah penuh ({$jadwal->kuota} pasien). Silakan pilih tanggal lain.",
+                'kuota'   => $jadwal->kuota,
+                'terisi'  => $terdaftar,
+            ], 422);
+        }
+
+        // ── Nomor antrian: urutan hari itu (ANT-01, ANT-02, ...) ─────────
+        $nomorUrut    = $terdaftar + 1;
+        $nomorAntrian = 'ANT-' . str_pad($nomorUrut, 2, '0', STR_PAD_LEFT);
 
         $reservasi = Reservasi::create([
             'user_id'           => auth()->id(),
@@ -82,27 +96,25 @@ class ReservasiController extends Controller
             'jadwal_id'         => $jadwal->id,
             'tanggal_reservasi' => $validated['tanggal_reservasi'],
             'keluhan'           => $validated['keluhan'],
-            'nomor_antrian'     => 'ANT-' . strtoupper(Str::random(6)),
-            'status'            => 'pending',
+            'nomor_antrian'     => $nomorAntrian,
+            'status'            => 'menunggu',
         ]);
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Reservasi berhasil dibuat.',
+            'message' => "Janji temu berhasil dibuat! Anda mendapat antrian nomor {$nomorAntrian}.",
             'data'    => $reservasi->load(['dokter', 'jadwal']),
+            'info'    => [
+                'nomor_antrian' => $nomorAntrian,
+                'urutan'        => $nomorUrut,
+                'dari_total'    => $jadwal->kuota,
+                'sisa_kuota'    => $jadwal->kuota - $nomorUrut,
+            ],
         ], 201);
     }
 
     /**
-     * @OA\Get(
-     *     path="/reservasis/{id}",
-     *     tags={"Reservasi"},
-     *     summary="Detail reservasi milik sendiri",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
-     *     @OA\Response(response=200, description="Detail reservasi beserta rekam medis jika sudah ada"),
-     *     @OA\Response(response=404, description="Tidak ditemukan")
-     * )
+     * GET /api/reservasis/{id}
      */
     public function show(int $id): JsonResponse
     {
@@ -114,85 +126,51 @@ class ReservasiController extends Controller
     }
 
     /**
-     * @OA\Put(
-     *     path="/reservasis/{id}",
-     *     tags={"Reservasi"},
-     *     summary="Batalkan reservasi milik sendiri (hanya status pending)",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(@OA\Property(property="status", type="string", enum={"dibatalkan"}, example="dibatalkan"))
-     *     ),
-     *     @OA\Response(response=200, description="Reservasi berhasil dibatalkan"),
-     *     @OA\Response(response=422, description="Status bukan pending")
-     * )
+     * PUT /api/reservasis/{id}
+     * Pasien hanya bisa membatalkan yang masih 'menunggu'.
      */
     public function update(Request $request, int $id): JsonResponse
     {
         $reservasi = Reservasi::where('user_id', auth()->id())->findOrFail($id);
 
-        if ($reservasi->status !== 'pending') {
+        if ($reservasi->status !== 'menunggu') {
             return response()->json([
                 'status'  => 'error',
-                'message' => "Reservasi tidak dapat diubah karena sudah berstatus {$reservasi->status}.",
+                'message' => "Janji temu tidak dapat dibatalkan karena sudah berstatus {$reservasi->status}.",
             ], 422);
         }
 
         $request->validate(['status' => 'required|in:dibatalkan']);
         $reservasi->update(['status' => 'dibatalkan']);
 
-        // Kirim notifikasi email pembatalan ke pasien
         try {
             $reservasi->user->notify(new ReservasiDibatalkan($reservasi));
-        } catch (\Exception) {
-            // Gagal kirim email tidak boleh gagalkan response API
-        }
+        } catch (\Exception) {}
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Reservasi berhasil dibatalkan.',
+            'message' => 'Janji temu berhasil dibatalkan.',
             'data'    => $reservasi->fresh(['dokter', 'jadwal']),
         ]);
     }
 
     /**
-     * @OA\Delete(
-     *     path="/reservasis/{id}",
-     *     tags={"Reservasi"},
-     *     summary="Hapus reservasi (hanya pending)",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
-     *     @OA\Response(response=200, description="Reservasi berhasil dihapus"),
-     *     @OA\Response(response=404, description="Tidak ditemukan")
-     * )
+     * DELETE /api/reservasis/{id}
      */
     public function destroy(int $id): JsonResponse
     {
         Reservasi::where('user_id', auth()->id())
-            ->where('status', 'pending')
+            ->where('status', 'menunggu')
             ->findOrFail($id)
             ->delete();
 
-        return response()->json(['status' => 'success', 'message' => 'Reservasi berhasil dihapus.']);
+        return response()->json(['status' => 'success', 'message' => 'Janji temu berhasil dihapus.']);
     }
 
     // ═══ ADMIN ════════════════════════════════════════════════════════
 
     /**
-     * @OA\Get(
-     *     path="/admin/reservasis",
-     *     tags={"Admin"},
-     *     summary="Semua reservasi seluruh pasien (admin only)",
-     *     security={{"bearerAuth":{}, "apiKeyAuth":{}}},
-     *     @OA\Parameter(name="status",    in="query", required=false, @OA\Schema(type="string", enum={"pending","dikonfirmasi","selesai","dibatalkan"})),
-     *     @OA\Parameter(name="search",    in="query", description="Cari nama pasien", required=false, @OA\Schema(type="string")),
-     *     @OA\Parameter(name="dokter_id", in="query", required=false, @OA\Schema(type="integer")),
-     *     @OA\Parameter(name="page",      in="query", required=false, @OA\Schema(type="integer", example=1)),
-     *     @OA\Parameter(name="per_page",  in="query", required=false, @OA\Schema(type="integer", example=15)),
-     *     @OA\Response(response=200, description="Semua reservasi"),
-     *     @OA\Response(response=403, description="Bukan admin")
-     * )
+     * GET /api/admin/reservasis
      */
     public function indexAdmin(Request $request): JsonResponse
     {
@@ -206,56 +184,58 @@ class ReservasiController extends Controller
     }
 
     /**
-     * @OA\Patch(
-     *     path="/admin/reservasis/{id}/status",
-     *     tags={"Admin"},
-     *     summary="Update status reservasi + kirim email notifikasi ke pasien",
-     *     description="Otomatis kirim email ke pasien saat status berubah ke 'dikonfirmasi' atau 'dibatalkan'.",
-     *     security={{"bearerAuth":{}, "apiKeyAuth":{}}},
-     *     @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer", example=1)),
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(
-     *             @OA\Property(property="status", type="string",
-     *                 enum={"pending","dikonfirmasi","selesai","dibatalkan"},
-     *                 example="dikonfirmasi")
-     *         )
-     *     ),
-     *     @OA\Response(response=200, description="Status diperbarui + email terkirim"),
-     *     @OA\Response(response=403, description="Bukan admin"),
-     *     @OA\Response(response=404, description="Reservasi tidak ditemukan")
-     * )
+     * PATCH /api/admin/reservasis/{id}/status
+     * Admin hanya bisa set: selesai | dibatalkan
+     * (tidak ada 'dikonfirmasi' lagi — antrian langsung aktif)
      */
     public function updateStatus(Request $request, int $id): JsonResponse
     {
-        $reservasi  = Reservasi::with('user')->findOrFail($id);
-        $statusLama = $reservasi->status;
+        $reservasi = Reservasi::with('user')->findOrFail($id);
 
         $validated = $request->validate([
-            'status' => 'required|in:pending,dikonfirmasi,selesai,dibatalkan',
+            'status' => 'required|in:menunggu,selesai,dibatalkan',
         ]);
 
         $reservasi->update(['status' => $validated['status']]);
 
-        // ── Kirim email notifikasi berdasarkan perubahan status ──────────
-        // Dibungkus try-catch agar kegagalan email tidak gagalkan response
+        // Kirim notifikasi kalau dibatalkan admin
         try {
-            match ($validated['status']) {
-                'dikonfirmasi' => $reservasi->user->notify(new ReservasiDikonfirmasi($reservasi)),
-                'dibatalkan'   => $reservasi->user->notify(new ReservasiDibatalkan($reservasi)),
-                default        => null, // selesai & pending tidak perlu notif
-            };
+            if ($validated['status'] === 'dibatalkan') {
+                $reservasi->user->notify(new ReservasiDibatalkan($reservasi));
+            }
         } catch (\Exception) {}
-
-        $emailInfo = match ($validated['status']) {
-            'dikonfirmasi', 'dibatalkan' => ' Email notifikasi telah dikirim ke pasien.',
-            default                      => '',
-        };
 
         return response()->json([
             'status'  => 'success',
-            'message' => "Status reservasi berhasil diperbarui.{$emailInfo}",
+            'message' => 'Status janji temu berhasil diperbarui.',
             'data'    => $reservasi->fresh(['user', 'dokter', 'jadwal']),
+        ]);
+    }
+
+    /**
+     * GET /api/jadwals/{id}/kuota?tanggal=2026-06-10
+     * Cek sisa kuota jadwal untuk tanggal tertentu (untuk frontend).
+     */
+    public function cekKuota(Request $request, int $jadwalId): JsonResponse
+    {
+        $request->validate(['tanggal' => 'required|date|after_or_equal:today']);
+
+        $jadwal    = \App\Models\Jadwal::findOrFail($jadwalId);
+        $terdaftar = Reservasi::where('jadwal_id', $jadwalId)
+            ->where('tanggal_reservasi', $request->tanggal)
+            ->whereNotIn('status', ['dibatalkan'])
+            ->count();
+
+        return response()->json([
+            'status'     => 'success',
+            'data'       => [
+                'jadwal_id'   => $jadwalId,
+                'tanggal'     => $request->tanggal,
+                'kuota'       => $jadwal->kuota,
+                'terisi'      => $terdaftar,
+                'sisa'        => max(0, $jadwal->kuota - $terdaftar),
+                'penuh'       => $terdaftar >= $jadwal->kuota,
+            ],
         ]);
     }
 }
