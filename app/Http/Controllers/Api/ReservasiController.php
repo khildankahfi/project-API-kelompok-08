@@ -86,9 +86,12 @@ class ReservasiController extends Controller
             ], 422);
         }
 
-        // ── Nomor antrian: urutan hari itu (ANT-01, ANT-02, ...) ─────────
+        // ── Nomor antrian: unik global dengan format YYMMDD-J{jadwal_id}-{urutan} ──
+        // Contoh: 260610-J2-03 = tanggal 10 Jun 2026, jadwal ke-2, antrian ke-3
+        // Format ini unik karena kombinasi tanggal+jadwal+urutan tidak mungkin sama
         $nomorUrut    = $terdaftar + 1;
-        $nomorAntrian = 'ANT-' . str_pad($nomorUrut, 2, '0', STR_PAD_LEFT);
+        $tglSingkat   = date('ymd', strtotime($validated['tanggal_reservasi']));
+        $nomorAntrian = $tglSingkat . '-J' . $jadwal->id . '-' . str_pad($nomorUrut, 2, '0', STR_PAD_LEFT);
 
         $reservasi = Reservasi::create([
             'user_id'           => auth()->id(),
@@ -102,7 +105,7 @@ class ReservasiController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => "Janji temu berhasil dibuat! Anda mendapat antrian nomor {$nomorAntrian}.",
+            'message' => "Janji temu berhasil dibuat! Nomor antrian Anda: {$nomorAntrian}.",
             'data'    => $reservasi->load(['dokter', 'jadwal']),
             'info'    => [
                 'nomor_antrian' => $nomorAntrian,

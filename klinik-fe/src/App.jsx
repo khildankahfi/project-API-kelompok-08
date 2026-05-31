@@ -1139,7 +1139,7 @@ function AdminReservasi({ call, showToast }) {
 
 function RekamMedisMgmt({ call }) {
   const [data, setData] = useState([]);
-  const [dokters, setDokters] = useState([]);
+  const [reservasis, setReservasis] = useState([]); // untuk dropdown pilih reservasi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);
@@ -1150,8 +1150,15 @@ function RekamMedisMgmt({ call }) {
   const load = async () => {
     setLoading(true); setError(null);
     try {
-      const [r, d] = await Promise.all([call("/rekam-medis", {}, true), call("/dokters")]);
-      setData(r.data); setDokters(d.data);
+      // Load rekam medis + semua reservasi yang statusnya 'menunggu' (siap dibuatkan rekam medis)
+      const [r, rv] = await Promise.all([
+        call("/rekam-medis", {}, true),
+        call("/admin/reservasis?status=menunggu", {}, true),
+      ]);
+      setData(r.data);
+      // Saring reservasi yang BELUM punya rekam medis
+      const sudahAdaRekam = new Set(r.data.map(rm => rm.reservasi_id));
+      setReservasis((rv.data || []).filter(res => !sudahAdaRekam.has(res.id)));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -1242,20 +1249,28 @@ function RekamMedisMgmt({ call }) {
         >
           <form id="form-rekam" onSubmit={save}>
             {modal === "add" && (
-              <div style={{ background: "var(--primary-light)", borderRadius: "var(--r-sm)", padding: "10px 14px", marginBottom: 16, border: "1px solid #b2ddd8", fontSize: 13, color: "var(--primary-dark)" }}>
-                💡 Masukkan ID reservasi yang sudah berstatus <strong>menunggu</strong>
-              </div>
+              <>
+                {reservasis.length === 0 ? (
+                  <div style={{ background: "#fef3c7", borderRadius: "var(--r-sm)", padding: "12px 14px", marginBottom: 16, border: "1px solid #fde68a", fontSize: 13, color: "#92400e" }}>
+                    ⚠️ Tidak ada reservasi yang menunggu. Pastikan pasien sudah membuat janji temu dengan status <strong>menunggu</strong>.
+                  </div>
+                ) : (
+                  <Field label="Pilih Reservasi Pasien" req>
+                    <Sel value={form.reservasi_id || ""} onChange={s("reservasi_id")} required>
+                      <option value="">-- Pilih pasien & jadwal --</option>
+                      {reservasis.map(res => (
+                        <option key={res.id} value={res.id}>
+                          {res.nomor_antrian} · {res.user?.name || "—"} · {res.dokter?.nama || "—"} · {res.tanggal_reservasi}
+                        </option>
+                      ))}
+                    </Sel>
+                  </Field>
+                )}
+              </>
             )}
-            <div className={modal === "add" ? "grid-2" : ""}>
-              {modal === "add" && (
-                <Field label="ID Reservasi" req>
-                  <Inp type="number" value={form.reservasi_id || ""} onChange={s("reservasi_id")} required placeholder="Contoh: 5" />
-                </Field>
-              )}
-              <Field label="Tanggal Periksa" req>
-                <Inp type="date" value={form.tanggal_periksa || ""} onChange={s("tanggal_periksa")} required />
-              </Field>
-            </div>
+            <Field label="Tanggal Periksa" req>
+              <Inp type="date" value={form.tanggal_periksa || ""} onChange={s("tanggal_periksa")} required />
+            </Field>
             <Field label="Diagnosis" req>
               <Txta value={form.diagnosis || ""} onChange={s("diagnosis")} required
                 placeholder="Contoh: Infeksi Saluran Pernapasan Atas (ISPA)"

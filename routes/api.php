@@ -24,6 +24,16 @@ Route::middleware('throttle:api')->group(function () {
     Route::get('jadwals/{id}/kuota', [ReservasiController::class, 'cekKuota']);
 });
 
+// ── BASIC AUTH ────────────────────────
+Route::middleware('auth.basic')->get('auth/basic-test', function (\Illuminate\Http\Request $request) {
+    return response()->json([
+        'status'  => 'success',
+        'message' => 'Autentikasi Basic Auth Berhasil!',
+        'user'    => $request->user()->only(['id', 'name', 'email', 'role']),
+    ]);
+});
+
+
 // ── PROTECTED JWT ────────────────────────────────────────────────────────────
 Route::middleware(['auth:api', 'throttle:api'])->group(function () {
 
