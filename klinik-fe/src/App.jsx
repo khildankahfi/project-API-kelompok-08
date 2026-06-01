@@ -189,7 +189,7 @@ const GLOBAL_CSS = `
   .acts { display:flex; gap:8px; justify-content:flex-end; }
 
   /* ── MODAL (detail - centered, wider) ── */
-  .modal-bg { position:fixed; inset:0; background:rgba(13,31,28,0.65); z-index:1000; display:flex; align-items:center; justify-content:center; padding:24px; animation:fadeIn .2s ease; backdrop-filter:blur(6px); }
+  .modal-bg { position:fixed; inset:0; background:rgba(13,31,28,0.65); z-index:1000; display:flex; align-items:flex-start; justify-content:center; padding:7vh 24px 24px; animation:fadeIn .2s ease; backdrop-filter:blur(6px); overflow-y:auto; }
   .modal-box { background:var(--surface); border-radius:var(--r-xl); width:100%; max-width:560px; max-height:88vh; display:flex; flex-direction:column; box-shadow:var(--sh-lg); animation:scaleIn .22s ease; }
   .modal-head { display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
   .modal-title { font-size:17px; font-weight:700; color:var(--text-1); }
@@ -1043,7 +1043,11 @@ function AdminReservasi({ call, showToast }) {
   const [detail, setDetail] = useState(null);
   const [updating, setUpdating] = useState(null);
 
-  const STATUS_LIST = ["pending", "dikonfirmasi", "selesai", "dibatalkan"];
+  const STATUS_LIST = [
+    { v: "menunggu", l: "Menunggu" },
+    { v: "selesai", l: "Selesai" },
+    { v: "dibatalkan", l: "Dibatalkan" },
+  ];
 
   const load = async () => {
     setLoading(true); setError(null);
@@ -1099,7 +1103,7 @@ function AdminReservasi({ call, showToast }) {
           actions={row => <>
             <button className="btn btn-outline btn-sm" onClick={() => setDetail(row)}>Detail</button>
             <Sel
-              value={row.status}
+              value={["menunggu", "selesai", "dibatalkan"].includes(row.status) ? row.status : "menunggu"}
               onChange={e => updateStatus(row.id, e.target.value)}
               disabled={updating === row.id}
               style={{ padding: "6px 10px", fontSize: 13, width: "auto", minWidth: 140 }}
