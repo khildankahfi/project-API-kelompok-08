@@ -8,8 +8,8 @@
 
 ## 👥 Informasi Kelompok & Pengembang
 
-| No | Nama Lengkap | NIM | Peran dalam Proyek |
-|---|---|---|---|
+| No | Nama Lengkap | NIM |
+|---|---|---|
 | 1 | **Elia Rifana Rif'an** | **24091397139** | 
 | 2 | **Ica thalita Natania** | **24091397158** | 
 | 3 | **Khildan Ash Kahfi** | **24091397159** | 

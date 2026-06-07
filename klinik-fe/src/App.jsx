@@ -2003,7 +2003,7 @@ function PatientShell({ user, active, goto, onLogout, children }) {
 
       {/* ── FOOTER ── */}
       <footer className="pw-footer">
-        <strong>Klinik Sehat</strong> &nbsp;·&nbsp; Jl. Kesehatan No. 1, Indonesia
+        <strong>Klinik Sehat</strong> &nbsp;·&nbsp; Jl. Bikini Bottom No. 14, Indonesia
         &nbsp;·&nbsp; © {new Date().getFullYear()} Semua hak dilindungi
       </footer>
     </div>
