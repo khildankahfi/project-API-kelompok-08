@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getCache, setCache, invalidate, INVALIDATE_MAP } from "./apiCache.js";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
-const BASE = "http://10.58.100.9:8000/api";
+const BASE = "https://project-api-kelompok-08-production.up.railway.app/api";
 
 // ─── GLOBAL CSS ───────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
