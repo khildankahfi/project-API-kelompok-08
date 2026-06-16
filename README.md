@@ -160,7 +160,7 @@ Sistem ini menerapkan standar keamanan terintegrasi dan validasi ketat guna menj
 
 Proyek ini telah dilengkapi dengan dokumentasi RESTful API terstandarisasi yang dibuat menggunakan anotasi OpenAPI 3.0 via library `darkaonline/l5-swagger`.
 
-*   **Akses UI Dokumentasi**: `http://localhost:8000/api/klinik`
+*   **Akses UI Dokumentasi**: `http://localhost:8080/api/klinik`
 *   **Perintah Regenerasi Swagger Docs** (jika ada perubahan anotasi pada Controller):
     ```bash
     php artisan l5-swagger:generate
