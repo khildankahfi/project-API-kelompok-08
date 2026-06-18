@@ -19,8 +19,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173', 'http://127.0.0.1:5500', 'https://cytoplast-mantis-unseated.ngrok-free.dev'],
-
+    'allowed_origins' => [
+        'http://localhost:5173',
+        'http://127.0.0.1:5500',
+        'https://cytoplast-mantis-unseated.ngrok-free.dev',
+        'https://project-api-kelompok-08.vercel.app',
+    ],
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
