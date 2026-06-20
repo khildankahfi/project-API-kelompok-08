@@ -367,6 +367,13 @@ const GLOBAL_CSS = `
   .pw-page-wide  { max-width:1000px; margin:0 auto; }
   .pw-page-full  { width:100%; }
 
+  .home-hero {
+    background:linear-gradient(135deg,var(--primary) 0%,var(--primary-mid) 100%);
+    border-radius:var(--r-xl); padding:32px 36px; margin-bottom:28px;
+    position:relative; overflow:hidden; color:#fff;
+  }
+  .hero-btns { display:flex; gap:12px; flex-wrap:wrap; }
+
   .pw-page-hero {
     background:linear-gradient(135deg,var(--primary) 0%,var(--primary-mid) 100%);
     border-radius:var(--r-xl); padding:28px 36px; margin-bottom:28px;
@@ -426,6 +433,10 @@ const GLOBAL_CSS = `
     .toast      { bottom:16px; right:16px; left:16px; max-width:none; }
     .detail-row { grid-template-columns:1fr; gap:3px; }
     .topbar-sub { display:none; }
+    .home-hero  { padding: 24px 20px; border-radius: var(--r-lg); }
+    .hero-btns  { flex-direction: column; width: 100%; }
+    .hero-btns button { width: 100%; justify-content: center; }
+    .pw-body    { padding-bottom: 90px; }
   }
 `;
 
@@ -1327,11 +1338,7 @@ function PasienHome({ user, call, setSection }) {
     <div className="fade-up">
 
       {/* ── HERO BANNER ─────────────────────────────────────────── */}
-      <div style={{
-        background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-mid) 100%)",
-        borderRadius: "var(--r-xl)", padding: "32px 36px", marginBottom: 28,
-        position: "relative", overflow: "hidden", color: "#fff",
-      }}>
+      <div className="home-hero">
         {/* Dekorasi lingkaran */}
         <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, background: "rgba(255,255,255,.07)", borderRadius: "50%" }} />
         <div style={{ position: "absolute", bottom: -60, right: 80, width: 140, height: 140, background: "rgba(255,255,255,.05)", borderRadius: "50%" }} />
@@ -1344,7 +1351,7 @@ function PasienHome({ user, call, setSection }) {
           <p style={{ fontSize: 14, opacity: .8, marginBottom: 24, maxWidth: 420 }}>
             Kesehatan Anda adalah prioritas kami. Buat janji temu atau cek status kunjungan Anda di sini.
           </p>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <div className="hero-btns">
             <button onClick={() => setSection("reservasi")} style={{
               background: "#fff", color: "var(--primary)", border: "none",
               padding: "11px 22px", borderRadius: "var(--r-md)", fontWeight: 700,
