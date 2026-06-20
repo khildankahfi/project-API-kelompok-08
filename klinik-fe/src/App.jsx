@@ -724,7 +724,7 @@ function AdminHome({ call, user }) {
       </div>
 
       {/* Charts Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 28 }}>
+      <div className="grid-2" style={{ gap: 20, marginBottom: 28 }}>
 
         {/* Bar Chart — Reservasi 7 Hari */}
         <div className="card card-p">
@@ -1121,7 +1121,7 @@ function AdminReservasi({ call, showToast }) {
             <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: 2, fontFamily: "'Courier New',monospace" }}>{detail.nomor_antrian}</div>
           </div>
           {/* Info grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div className="grid-2" style={{ gap: 12, marginBottom: 16 }}>
             {[["Pasien", detail.user?.name || "—", "👤"], ["Dokter", detail.dokter?.nama || "—", "👨‍⚕️"], ["Tanggal", detail.tanggal_reservasi, "📅"], ["Status", null, "🔖"]].map(([k, v, ic]) => (
               <div key={k} style={{ background: "var(--surface-2)", borderRadius: "var(--r-sm)", padding: "12px 14px", border: "1px solid var(--border)" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>{ic} {k}</div>
@@ -1394,7 +1394,7 @@ function PasienHome({ user, call, setSection }) {
       )}
 
       {/* ── QUICK ACCESS + DOKTER ───────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      <div className="grid-2" style={{ gap: 24 }}>
 
         {/* Quick Access */}
         <div>
@@ -1783,7 +1783,7 @@ function MyReservasi({ call, showToast }) {
             <Badge label={detail.status} />
           </div>
           {/* Info 2 kolom */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+          <div className="grid-2" style={{ gap: 10, marginBottom: 14 }}>
             {[
               ["👨‍⚕️ Dokter", detail.dokter?.nama || "—"],
               ["📅 Tanggal", detail.tanggal_reservasi],
