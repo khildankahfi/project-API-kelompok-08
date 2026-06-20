@@ -357,9 +357,9 @@ const GLOBAL_CSS = `
 
   @media(max-width:900px) {
     .pw-nav { display:none; }
-    .pw-hamburger { display:flex; }
-    .pw-topbar-inner { padding:0 18px; }
-    .pw-body { padding:20px 18px; }
+    .pw-hamburger { display:flex; flex-shrink: 0; }
+    .pw-topbar-inner { padding:0 24px; }
+    .pw-body { padding:20px 24px; }
   }
 
   /* ── PAGE WRAPPERS (patient website) ── */
