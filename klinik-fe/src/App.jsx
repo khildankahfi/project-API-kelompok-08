@@ -434,9 +434,8 @@ const GLOBAL_CSS = `
     .detail-row { grid-template-columns:1fr; gap:3px; }
     .topbar-sub { display:none; }
     .home-hero  { padding: 24px 20px; border-radius: var(--r-lg); }
-    .hero-btns  { flex-direction: column; width: 100%; }
-    .hero-btns button { width: 100%; justify-content: center; }
-    .pw-body    { padding-bottom: 90px; }
+    .hero-btns  { flex-direction: row; }
+    .hero-btns button { flex: 1; min-width: 130px; justify-content: center; padding-left: 12px; padding-right: 12px; }
   }
 `;
 
