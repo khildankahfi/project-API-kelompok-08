@@ -360,6 +360,7 @@ const GLOBAL_CSS = `
     .pw-hamburger { display:flex; flex-shrink: 0; }
     .pw-topbar-inner { padding:0 24px; }
     .pw-body { padding:20px 24px; }
+    .pw-user-info, .user-profile > div:first-child { display:none !important; }
   }
 
   /* ── PAGE WRAPPERS (patient website) ── */
@@ -1963,7 +1964,7 @@ function PatientShell({ user, active, goto, onLogout, children }) {
 
           {/* User dropdown */}
           <div className="pw-user">
-            <div style={{ textAlign: "right", display: "flex", flexDirection: "column" }}>
+            <div className="pw-user-info" style={{ textAlign: "right", display: "flex", flexDirection: "column" }}>
               <span className="pw-user-name">{user.name}</span>
               <span className="pw-user-role">Pasien</span>
             </div>
