@@ -337,15 +337,25 @@ const GLOBAL_CSS = `
   .pw-dropdown-item.danger { color:var(--danger); }
   .pw-dropdown-item.danger:hover { background:#fef2f2; }
 
-  .pw-hamburger { display:none; width:38px; height:38px; border:1.5px solid var(--border); background:var(--surface-2); border-radius:var(--r-sm); cursor:pointer; font-size:18px; align-items:center; justify-content:center; margin-right:12px; }
-
-  .pw-mobile-menu {
-    background:#fff; border-top:1px solid var(--border); padding:12px 16px;
-    display:none; flex-direction:column; gap:4px;
+  /* ── BOTTOM NAVIGATION (MOBILE) ── */
+  .pw-bottom-nav {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: #fff; border-top: 1px solid var(--border); box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    z-index: 900; padding-bottom: env(safe-area-inset-bottom);
   }
-  .pw-mobile-menu.open { display:flex; }
-  .pw-mobile-item { padding:10px 14px; border:none; background:transparent; cursor:pointer; font-family:var(--font); font-size:14px; font-weight:600; color:var(--text-2); text-align:left; border-radius:var(--r-sm); transition:all .15s; }
-  .pw-mobile-item:hover,.pw-mobile-item.active { color:var(--primary); background:var(--primary-light); }
+  .pw-bottom-nav-inner {
+    display: flex; justify-content: space-around; padding: 8px 4px;
+  }
+  .pw-bottom-nav-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; border: none; background: transparent; cursor: pointer;
+    font-family: var(--font); color: var(--text-3); flex: 1; min-width: 0;
+  }
+  .pw-bottom-nav-ic { font-size: 20px; transition: transform var(--tr); }
+  .pw-bottom-nav-lbl { font-size: 10px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .pw-bottom-nav-item:hover .pw-bottom-nav-ic { transform: translateY(-2px); color: var(--primary); }
+  .pw-bottom-nav-item.active { color: var(--primary); }
+  .pw-bottom-nav-item.active .pw-bottom-nav-ic { color: var(--primary); }
 
   .pw-body { flex:1; max-width:1200px; margin:0 auto; width:100%; padding:36px 32px; }
 
@@ -357,10 +367,11 @@ const GLOBAL_CSS = `
 
   @media(max-width:900px) {
     .pw-nav { display:none; }
-    .pw-hamburger { display:flex; flex-shrink: 0; }
     .pw-topbar-inner { padding:0 24px; }
-    .pw-body { padding:20px 24px; }
+    .pw-body { padding:20px 24px 80px; }
     .pw-user-info, .user-profile > div:first-child { display:none !important; }
+    .pw-bottom-nav { display: block; }
+    .pw-footer { padding-bottom: 80px; }
   }
 
   /* ── PAGE WRAPPERS (patient website) ── */
@@ -1925,7 +1936,6 @@ function MyRekamMedis({ call }) {
 // ─── PATIENT WEBSITE SHELL ────────────────────────────────────────────────────
 function PatientShell({ user, active, goto, onLogout, children }) {
   const [dropdown, setDropdown] = useState(false);
-  const [mobileMenu, setMobileMenu] = useState(false);
   const initials = user.name?.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 
   const NAV = [
@@ -1941,9 +1951,6 @@ function PatientShell({ user, active, goto, onLogout, children }) {
       {/* ── TOP NAVIGATION ── */}
       <header className="pw-topbar">
         <div className="pw-topbar-inner">
-          {/* Hamburger mobile */}
-          <button className="pw-hamburger" onClick={() => setMobileMenu(m => !m)}>☰</button>
-
           {/* Logo */}
           <div className="pw-logo" onClick={() => goto("home")} style={{ cursor: "pointer" }}>
             <div className="pw-logo-ic">🏥</div>
@@ -1988,19 +1995,6 @@ function PatientShell({ user, active, goto, onLogout, children }) {
             </div>
           </div>
         </div>
-
-        {/* Mobile menu */}
-        <div className={`pw-mobile-menu ${mobileMenu ? "open" : ""}`}>
-          {NAV.map(([id, ic, label]) => (
-            <button key={id} className={`pw-mobile-item ${active === id ? "active" : ""}`}
-              onClick={() => { goto(id); setMobileMenu(false); }}>
-              {ic} {label}
-            </button>
-          ))}
-          <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "8px 0" }} />
-          <button className="pw-mobile-item" onClick={() => { goto("profile"); setMobileMenu(false); }}>👤 Edit Profil</button>
-          <button className="pw-mobile-item" style={{ color: "var(--danger)" }} onClick={onLogout}>🚪 Keluar</button>
-        </div>
       </header>
 
       {/* ── MAIN CONTENT ── */}
@@ -2013,6 +2007,18 @@ function PatientShell({ user, active, goto, onLogout, children }) {
         <strong>Klinik Sehat</strong> &nbsp;·&nbsp; Jl. Bikini Bottom No. 14, Indonesia
         &nbsp;·&nbsp; © {new Date().getFullYear()} Semua hak dilindungi
       </footer>
+
+      {/* ── BOTTOM NAV (MOBILE) ── */}
+      <nav className="pw-bottom-nav">
+        <div className="pw-bottom-nav-inner">
+          {NAV.map(([id, ic, label]) => (
+            <button key={id} className={`pw-bottom-nav-item ${active === id ? "active" : ""}`} onClick={() => goto(id)}>
+              <span className="pw-bottom-nav-ic">{ic}</span>
+              <span className="pw-bottom-nav-lbl">{label === "Buat Janji Temu" ? "Janji Temu" : label === "Kunjungan Saya" ? "Kunjungan" : label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
