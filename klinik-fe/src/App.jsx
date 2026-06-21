@@ -572,6 +572,58 @@ function Inp(p) { return <input className="inp" {...p} />; }
 function Sel({ children, ...p }) { return <select className="inp" {...p}>{children}</select>; }
 function Txta(p) { return <textarea className="inp" {...p} />; }
 
+function CustomSelect({ value, onChange, options, placeholder, disabled, icon, renderOption }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find(o => String(o.value) === String(value));
+
+  return (
+    <>
+      <div 
+        onClick={() => !disabled && setOpen(true)}
+        style={{
+          padding: "11px 15px", border: "1.5px solid var(--border)", borderRadius: "var(--r-sm)",
+          background: disabled ? "var(--surface-2)" : "var(--surface)", cursor: disabled ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          opacity: disabled ? 0.7 : 1, transition: "all var(--tr)"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+          {icon && <span style={{ fontSize: 18 }}>{icon}</span>}
+          <span style={{ color: selected ? "var(--text-1)" : "var(--text-3)", fontSize: 14, fontWeight: selected ? 600 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {selected ? selected.label : placeholder}
+          </span>
+        </div>
+        <span style={{ color: "var(--text-3)", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s", fontSize: 12 }}>▼</span>
+      </div>
+
+      {open && (
+        <Modal title={placeholder} onClose={() => setOpen(false)}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {options.map(opt => (
+              <div 
+                key={opt.value}
+                onClick={() => { onChange({ target: { value: opt.value } }); setOpen(false); }}
+                style={{
+                  padding: "14px 16px", border: `1.5px solid ${String(value) === String(opt.value) ? "var(--primary)" : "var(--border)"}`,
+                  borderRadius: "var(--r-md)", background: String(value) === String(opt.value) ? "var(--primary-light)" : "var(--surface)",
+                  cursor: "pointer", transition: "all 0.2s"
+                }}
+              >
+                {renderOption ? renderOption(opt, String(value) === String(opt.value)) : (
+                  <div style={{ fontWeight: String(value) === String(opt.value) ? 700 : 500, color: String(value) === String(opt.value) ? "var(--primary-dark)" : "var(--text-1)" }}>
+                    {opt.label}
+                  </div>
+                )}
+              </div>
+            ))}
+            {options.length === 0 && <div style={{ textAlign: "center", padding: 20, color: "var(--text-3)" }}>Tidak ada pilihan tersedia</div>}
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
 function PH({ title, sub, action }) {
   return (
     <div className="ph">
@@ -1674,10 +1726,18 @@ function ReservasiForm({ call, showToast, initialDokter, onDone }) {
                 <span style={{ fontWeight: 700, fontSize: 15, color: "var(--text-1)" }}>Pilih Dokter</span>
               </div>
               <Field label="Dokter" req>
-                <Sel value={form.dokter_id} onChange={s("dokter_id")} required>
-                  <option value="">Pilih dokter...</option>
-                  {dokters.map(d => <option key={d.id} value={d.id}>{d.nama} — {d.spesialisasi}</option>)}
-                </Sel>
+                <CustomSelect 
+                  value={form.dokter_id} 
+                  onChange={s("dokter_id")} 
+                  placeholder="Pilih dokter..." 
+                  options={dokters.map(d => ({ value: d.id, label: `${d.nama} — ${d.spesialisasi}`, d }))}
+                  renderOption={(opt, isSel) => (
+                    <div>
+                      <div style={{ fontWeight: isSel ? 700 : 600, color: isSel ? "var(--primary-dark)" : "var(--text-1)", fontSize: 15 }}>{opt.d.nama}</div>
+                      <div style={{ color: isSel ? "var(--primary)" : "var(--text-3)", fontSize: 13, marginTop: 2 }}>{opt.d.spesialisasi}</div>
+                    </div>
+                  )}
+                />
               </Field>
               {/* Info card dokter terpilih */}
               {selectedDokter && (
@@ -1702,10 +1762,24 @@ function ReservasiForm({ call, showToast, initialDokter, onDone }) {
               </div>
               <div className="grid-2">
                 <Field label="Jadwal Praktik" req>
-                  <Sel value={form.jadwal_id} onChange={s("jadwal_id")} required disabled={!form.dokter_id}>
-                    <option value="">{form.dokter_id ? "Pilih jadwal..." : "Pilih dokter dulu"}</option>
-                    {jadwals.map(j => <option key={j.id} value={j.id}>{j.hari} · {j.jam_mulai}–{j.jam_selesai} (Kuota: {j.kuota})</option>)}
-                  </Sel>
+                  <CustomSelect 
+                    value={form.jadwal_id} 
+                    onChange={s("jadwal_id")} 
+                    disabled={!form.dokter_id}
+                    placeholder={form.dokter_id ? "Pilih jadwal..." : "Pilih dokter dulu"}
+                    options={jadwals.map(j => ({ value: j.id, label: `${j.hari} · ${j.jam_mulai}–${j.jam_selesai} (Kuota: ${j.kuota})`, j }))}
+                    renderOption={(opt, isSel) => (
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontWeight: isSel ? 700 : 600, color: isSel ? "var(--primary-dark)" : "var(--text-1)", fontSize: 15 }}>{opt.j.hari}</div>
+                          <div style={{ color: isSel ? "var(--primary)" : "var(--text-3)", fontSize: 13, marginTop: 2 }}>{opt.j.jam_mulai} – {opt.j.jam_selesai}</div>
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 700, background: isSel ? "#fff" : "var(--surface-2)", padding: "4px 8px", borderRadius: "var(--r-sm)", color: "var(--text-2)" }}>
+                          Sisa: {opt.j.kuota}
+                        </div>
+                      </div>
+                    )}
+                  />
                 </Field>
                 <Field label="Tanggal Kunjungan" req>
                   <Inp type="date" value={form.tanggal_reservasi} onChange={s("tanggal_reservasi")} required min={today} />
