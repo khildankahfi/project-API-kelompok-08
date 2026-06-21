@@ -189,13 +189,13 @@ const GLOBAL_CSS = `
   .acts { display:flex; gap:8px; justify-content:flex-end; }
 
   /* ── MODAL (detail - centered, wider) ── */
-  .modal-bg { position:fixed; inset:0; background:rgba(13,31,28,0.65); z-index:1000; display:flex; align-items:flex-start; justify-content:center; padding:7vh 24px 24px; animation:fadeIn .2s ease; backdrop-filter:blur(6px); overflow-y:auto; }
-  .modal-box { background:var(--surface); border-radius:var(--r-xl); width:100%; max-width:560px; max-height:88vh; display:flex; flex-direction:column; box-shadow:var(--sh-lg); animation:scaleIn .22s ease; }
+  .modal-bg { position:fixed; inset:0; background:rgba(13,31,28,0.65); z-index:1000; display:flex; align-items:center; justify-content:center; padding:24px; animation:fadeIn .2s ease; backdrop-filter:blur(6px); }
+  .modal-box { background:var(--surface); border-radius:var(--r-xl); width:100%; max-width:560px; max-height:calc(100vh - 48px); display:flex; flex-direction:column; box-shadow:var(--sh-lg); animation:scaleIn .22s ease; }
   .modal-head { display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid var(--border); flex-shrink:0; }
   .modal-title { font-size:17px; font-weight:700; color:var(--text-1); }
   .modal-x { width:32px; height:32px; border:none; background:var(--surface-2); border-radius:50%; cursor:pointer; font-size:18px; color:var(--text-3); display:flex; align-items:center; justify-content:center; transition:all var(--tr); }
   .modal-x:hover { background:var(--border); color:var(--text-1); }
-  .modal-body { padding:24px; overflow-y:auto; flex:1; }
+  .modal-body { padding:24px; overflow-y:auto; flex:1; min-height:0; }
 
   /* ── SLIDE PANEL (form admin - dari kanan) ── */
   @keyframes slideIn  { from { transform:translateX(100%); } to { transform:translateX(0); } }
@@ -223,7 +223,8 @@ const GLOBAL_CSS = `
 
   @media(max-width:640px) {
     .slide-panel { max-width:100%; }
-    .modal-box   { max-width:100%; }
+    .modal-box   { max-width:100%; max-height:calc(100vh - 32px); }
+    .modal-bg    { padding:16px; }
   }
 
   /* ── STAT ── */
