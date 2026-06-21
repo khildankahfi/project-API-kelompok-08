@@ -624,6 +624,30 @@ function CustomSelect({ value, onChange, options, placeholder, disabled, icon, r
   );
 }
 
+function ResponsiveSelect(props) {
+  const [isApp, setIsApp] = useState(window.matchMedia('(display-mode: standalone)').matches);
+  
+  useEffect(() => {
+    const mq = window.matchMedia('(display-mode: standalone)');
+    const handler = e => setIsApp(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  if (isApp) {
+    return <CustomSelect {...props} />;
+  }
+
+  return (
+    <Sel value={props.value} onChange={props.onChange} required={props.required} disabled={props.disabled}>
+      <option value="">{props.placeholder}</option>
+      {props.options.map(o => (
+        <option key={o.value} value={o.value}>{o.label}</option>
+      ))}
+    </Sel>
+  );
+}
+
 function PH({ title, sub, action }) {
   return (
     <div className="ph">
@@ -1726,9 +1750,10 @@ function ReservasiForm({ call, showToast, initialDokter, onDone }) {
                 <span style={{ fontWeight: 700, fontSize: 15, color: "var(--text-1)" }}>Pilih Dokter</span>
               </div>
               <Field label="Dokter" req>
-                <CustomSelect 
+                <ResponsiveSelect 
                   value={form.dokter_id} 
                   onChange={s("dokter_id")} 
+                  required
                   placeholder="Pilih dokter..." 
                   options={dokters.map(d => ({ value: d.id, label: `${d.nama} — ${d.spesialisasi}`, d }))}
                   renderOption={(opt, isSel) => (
@@ -1762,9 +1787,10 @@ function ReservasiForm({ call, showToast, initialDokter, onDone }) {
               </div>
               <div className="grid-2">
                 <Field label="Jadwal Praktik" req>
-                  <CustomSelect 
+                  <ResponsiveSelect 
                     value={form.jadwal_id} 
                     onChange={s("jadwal_id")} 
+                    required
                     disabled={!form.dokter_id}
                     placeholder={form.dokter_id ? "Pilih jadwal..." : "Pilih dokter dulu"}
                     options={jadwals.map(j => ({ value: j.id, label: `${j.hari} · ${j.jam_mulai}–${j.jam_selesai} (Kuota: ${j.kuota})`, j }))}
