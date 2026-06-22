@@ -105,7 +105,7 @@ class RekamMedisTest extends TestCase
         $pasien = $this->pasienUser();
         $token  = auth('api')->login($pasien);
 
-        $this->withToken($token)->getJson('/api/rekam-medis')->assertStatus(403);
+        $this->withToken($token)->withHeaders(['X-API-KEY' => $pasien->api_key])->getJson('/api/rekam-medis')->assertStatus(403);
     }
 
     // ── Store (admin only) ────────────────────────────────────────────────────
@@ -255,7 +255,7 @@ class RekamMedisTest extends TestCase
             'resep_obat'      => 'Resep Test',
         ]);
 
-        $this->withToken($pasienTok)->deleteJson("/api/rekam-medis/{$rm->id}")
+        $this->withToken($pasienTok)->withHeaders(['X-API-KEY' => $pasien->api_key])->deleteJson("/api/rekam-medis/{$rm->id}")
             ->assertStatus(403);
     }
 }

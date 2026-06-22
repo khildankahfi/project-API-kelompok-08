@@ -124,7 +124,7 @@ class DokterTest extends TestCase
         $pasien = $this->pasienUser();
         $token  = auth('api')->login($pasien);
 
-        $this->withToken($token)->postJson('/api/dokters', [
+        $this->withToken($token)->withHeaders(['X-API-KEY' => $pasien->api_key])->postJson('/api/dokters', [
             'nama'             => 'dr. Tidak Boleh',
             'spesialisasi'     => 'Umum',
             'no_str'           => 'STR-0000',
