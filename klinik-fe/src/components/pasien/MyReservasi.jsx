@@ -63,23 +63,65 @@ export default function MyReservasi({ call, showToast }) {
       )}
 
       <div className="card">
-        {loading ? <Loading /> : error ? <ErrorState message={error} onRetry={load} /> : <Table
-          cols={[
-            { key: "nomor_antrian", label: "No. Antrian", render: v => <span className="mono" style={{ color: "var(--primary)", fontWeight: 700 }}>{v}</span> },
-            { key: "dokter", label: "Dokter", render: v => v?.nama || "—" },
-            { key: "jadwal", label: "Jadwal", render: v => v ? `${v.hari} · ${v.jam_mulai}–${v.jam_selesai}` : "—" },
-            { key: "tanggal_reservasi", label: "Tanggal" },
-            { key: "status", label: "Status", render: v => <Badge label={v} /> },
-          ]}
-          data={data}
-          actions={row => <>
-            <button className="btn btn-outline btn-sm" onClick={async () => {
-              try { const r = await call(`/reservasis/${row.id}`); setDetail(r.data); }
-              catch { setDetail(row); }
-            }}>Detail</button>
-            {row.status === "pending" && <button className="btn btn-danger btn-sm" onClick={() => batalkan(row.id)}>Batalkan</button>}
-          </>}
-        />}
+        {loading ? <Loading /> : error ? <ErrorState message={error} onRetry={load} /> : (
+          <>
+            {/* Desktop View */}
+            <div className="desktop-only">
+              <Table
+                cols={[
+                  { key: "nomor_antrian", label: "No. Antrian", render: v => <span className="mono" style={{ color: "var(--primary)", fontWeight: 700 }}>{v}</span> },
+                  { key: "dokter", label: "Dokter", render: v => v?.nama || "—" },
+                  { key: "jadwal", label: "Jadwal", render: v => v ? `${v.hari} · ${v.jam_mulai}–${v.jam_selesai}` : "—" },
+                  { key: "tanggal_reservasi", label: "Tanggal" },
+                  { key: "status", label: "Status", render: v => <Badge label={v} /> },
+                ]}
+                data={data}
+                actions={row => <>
+                  <button className="btn btn-outline btn-sm" onClick={async () => {
+                    try { const r = await call(`/reservasis/${row.id}`); setDetail(r.data); }
+                    catch { setDetail(row); }
+                  }}>Detail</button>
+                  {row.status === "pending" && <button className="btn btn-danger btn-sm" onClick={() => batalkan(row.id)}>Batalkan</button>}
+                </>}
+              />
+            </div>
+
+            {/* Mobile View */}
+            <div className="mobile-only" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+              {data.length === 0 ? (
+                <Empty title="Belum ada data" sub="Data akan tampil di sini" />
+              ) : (
+                data.map((row, i) => (
+                  <div key={row.id || i} style={{ border: "1px solid var(--border)", padding: "16px", borderRadius: "var(--r-md)", background: "var(--surface-2)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>No. Antrian</div>
+                        <div className="mono" style={{ color: "var(--primary)", fontWeight: 700, fontSize: 16 }}>{row.nomor_antrian}</div>
+                      </div>
+                      <Badge label={row.status} />
+                    </div>
+                    <div style={{ fontSize: 14, marginBottom: 6 }}>
+                      <strong>👨‍⚕️ Dokter:</strong> {row.dokter?.nama || "—"}
+                    </div>
+                    <div style={{ fontSize: 14, color: "var(--text-2)", marginBottom: 16 }}>
+                      <strong>📅 Jadwal:</strong> {row.tanggal_reservasi} <br />
+                      <span style={{ marginLeft: "24px", fontSize: 13 }}>{row.jadwal ? `(${row.jadwal.hari}, ${row.jadwal.jam_mulai}–${row.jadwal.jam_selesai})` : ""}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                      <button className="btn btn-outline btn-sm" style={{ flex: 1, justifyContent: "center" }} onClick={async () => {
+                        try { const r = await call(`/reservasis/${row.id}`); setDetail(r.data); }
+                        catch { setDetail(row); }
+                      }}>Detail</button>
+                      {row.status === "pending" && (
+                        <button className="btn btn-danger btn-sm" style={{ flex: 1, justifyContent: "center" }} onClick={() => batalkan(row.id)}>Batalkan</button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {detail && (

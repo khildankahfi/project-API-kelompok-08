@@ -430,6 +430,7 @@ tbody tr:hover { background:var(--surface-2); }
 .auth-link:hover { text-decoration:underline; }
 
 /* ── RESPONSIVE ── */
+.mobile-only { display: none; }
 @media (max-width: 1024px) {
   .page-body { padding:24px 28px; }
   .topbar    { padding:0 28px; }
@@ -442,6 +443,10 @@ tbody tr:hover { background:var(--surface-2); }
   .hamburger { display:flex; }
   .topbar    { padding:0 18px; }
   .page-body { padding:20px 18px; }
+}
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: flex !important; }
 }
 @media (max-width: 640px) {
   :root { --r-xl: 16px; }
