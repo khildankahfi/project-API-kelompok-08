@@ -458,4 +458,8 @@ tbody tr:hover { background:var(--surface-2); }
   .home-hero  { padding: 24px 20px; border-radius: var(--r-lg); }
   .hero-btns  { flex-direction: row; }
   .hero-btns button { flex: 1; min-width: 130px; justify-content: center; padding-left: 12px; padding-right: 12px; }
+  table { min-width: 500px; }
+  .rm-card-row { flex-wrap: wrap !important; gap: 12px !important; }
+  .rm-card-head { flex-wrap: wrap !important; gap: 2px 8px !important; }
+  .rm-card-dot { display: none !important; }
 }

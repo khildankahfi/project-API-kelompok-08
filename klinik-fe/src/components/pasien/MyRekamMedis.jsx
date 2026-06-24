@@ -58,12 +58,12 @@ export default function MyRekamMedis({ call }) {
                     onMouseEnter={e => e.currentTarget.style.borderColor = "var(--primary)"}
                     onMouseLeave={e => e.currentTarget.style.borderColor = "var(--border)"}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div className="rm-card-row" style={{ display: "flex", alignItems: "center", gap: 16 }}>
                       <div style={{ width: 52, height: 52, background: "linear-gradient(135deg,var(--primary),var(--primary-mid))", borderRadius: "var(--r-md)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🩺</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                      <div style={{ flex: 1, minWidth: 0, width: "100%" }}>
+                        <div className="rm-card-head" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
                           <span style={{ fontWeight: 700, fontSize: 15, color: "var(--text-1)" }}>{rm.dokter?.nama || "—"}</span>
-                          <span style={{ fontSize: 12, color: "var(--text-3)" }}>·</span>
+                          <span className="rm-card-dot" style={{ fontSize: 12, color: "var(--text-3)" }}>·</span>
                           <span style={{ fontSize: 13, color: "var(--text-3)" }}>{rm.tanggal_periksa}</span>
                         </div>
                         <div style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
