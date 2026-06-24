@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, PieChart, Pie, Cell } from 'recharts';
 import Badge from '../shared/Badge';
 import Modal from '../shared/Modal';
 import SlidePanel from '../shared/SlidePanel';
