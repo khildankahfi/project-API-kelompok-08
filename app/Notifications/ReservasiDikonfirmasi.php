@@ -7,22 +7,24 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+
 /**
  * Notifikasi email yang dikirim ke pasien ketika admin mengkonfirmasi reservasi.
  * Dipanggil dari ReservasiController::updateStatus() saat status → 'dikonfirmasi'.
  */
-class ReservasiDikonfirmasi extends Notification
+class ReservasiDikonfirmasi extends Notification implements ShouldBroadcast
 {
     use Queueable;
 
     public function __construct(private Reservasi $reservasi) {}
 
     /**
-     * Kirim via email saja.
+     * Kirim via email, database, dan broadcast.
      */
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database', 'broadcast'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -44,5 +46,20 @@ class ReservasiDikonfirmasi extends Notification
             ->action('Lihat Detail Reservasi', url('/'))
             ->line('Terima kasih telah mempercayakan kesehatan Anda kepada Klinik Sehat.')
             ->salutation('Salam, Tim Klinik Sehat');
+    }
+
+    /**
+     * Data yang disimpan di tabel notifications dan dibroadcast ke websocket.
+     */
+    public function toArray(object $notifiable): array
+    {
+        $this->reservasi->loadMissing(['dokter', 'jadwal']);
+        return [
+            'reservasi_id' => $this->reservasi->id,
+            'nomor_antrian' => $this->reservasi->nomor_antrian,
+            'title' => 'Reservasi Dikonfirmasi',
+            'message' => "Reservasi Anda dengan dr. {$this->reservasi->dokter->nama} telah dikonfirmasi.",
+            'type' => 'dikonfirmasi',
+        ];
     }
 }

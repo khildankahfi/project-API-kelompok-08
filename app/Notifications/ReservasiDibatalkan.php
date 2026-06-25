@@ -7,10 +7,12 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+
 /**
  * Notifikasi email ke pasien saat reservasi dibatalkan (oleh admin atau pasien sendiri).
  */
-class ReservasiDibatalkan extends Notification
+class ReservasiDibatalkan extends Notification implements ShouldBroadcast
 {
     use Queueable;
 
@@ -18,7 +20,7 @@ class ReservasiDibatalkan extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database', 'broadcast'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -38,5 +40,20 @@ class ReservasiDibatalkan extends Notification
             ->action('Buat Reservasi Baru', url('/'))
             ->line('Terima kasih atas pengertian Anda.')
             ->salutation('Salam, Tim Klinik Sehat');
+    }
+
+    /**
+     * Data yang disimpan di tabel notifications dan dibroadcast ke websocket.
+     */
+    public function toArray(object $notifiable): array
+    {
+        $this->reservasi->loadMissing(['dokter']);
+        return [
+            'reservasi_id' => $this->reservasi->id,
+            'nomor_antrian' => $this->reservasi->nomor_antrian,
+            'title' => 'Reservasi Dibatalkan',
+            'message' => "Reservasi Anda dengan dr. {$this->reservasi->dokter->nama} pada tanggal {$this->reservasi->tanggal_reservasi} telah dibatalkan.",
+            'type' => 'dibatalkan',
+        ];
     }
 }
