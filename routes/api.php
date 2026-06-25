@@ -6,7 +6,9 @@ use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReservasiController;
 use App\Http\Controllers\Api\RekamMedisController;
+use App\Http\Controllers\Api\NotificationController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Broadcast;
 
 // ── PUBLIC ───────────────────────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
@@ -37,6 +39,9 @@ Route::middleware('auth.basic')->get('auth/basic-test', function (\Illuminate\Ht
 // ── PROTECTED JWT ────────────────────────────────────────────────────────────
 Route::middleware(['auth:api', 'throttle:api'])->group(function () {
 
+    // WebSocket channel authentication (untuk Reverb/Pusher private channels)
+    Broadcast::routes(['middleware' => ['auth:api']]);
+
     Route::prefix('auth')->group(function () {
         Route::post('logout',  [AuthController::class, 'logout']);
         Route::get('me',       [AuthController::class, 'me']);
@@ -46,6 +51,11 @@ Route::middleware(['auth:api', 'throttle:api'])->group(function () {
     Route::get('profile',          [ProfileController::class, 'show']);
     Route::put('profile',          [ProfileController::class, 'update']);
     Route::put('profile/password', [ProfileController::class, 'updatePassword']);
+
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::patch('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::patch('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
     Route::apiResource('reservasis', ReservasiController::class);
 
