@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Traits\PaginationHelper;
 use App\Models\Reservasi;
 use App\Notifications\ReservasiDibatalkan;
+use App\Notifications\ReservasiBaru;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -102,6 +104,14 @@ class ReservasiController extends Controller
             'nomor_antrian'     => $nomorAntrian,
             'status'            => 'menunggu',
         ]);
+
+        // Notifikasi ke semua admin bahwa ada reservasi baru
+        try {
+            $admins = User::where('role', 'admin')->get();
+            foreach ($admins as $admin) {
+                $admin->notify(new ReservasiBaru($reservasi));
+            }
+        } catch (\Exception) {}
 
         return response()->json([
             'status'  => 'success',

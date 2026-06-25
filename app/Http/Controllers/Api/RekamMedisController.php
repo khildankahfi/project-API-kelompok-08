@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Traits\PaginationHelper;
 use App\Models\RekamMedis;
 use App\Models\Reservasi;
+use App\Notifications\RekamMedisBaru;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -86,6 +87,12 @@ class RekamMedisController extends Controller
         ]);
 
         $reservasi->update(['status' => 'selesai']);
+
+        // Notifikasi ke pasien bahwa rekam medisnya sudah tersedia
+        try {
+            $reservasi->user->notify(new RekamMedisBaru($rekamMedis));
+        } catch (\Exception) {}
+
         return response()->json([
             'status'  => 'success',
             'message' => 'Rekam medis berhasil ditambahkan. Status reservasi diperbarui ke "selesai".',
