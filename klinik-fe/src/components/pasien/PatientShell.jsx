@@ -10,6 +10,7 @@ import ErrorState from '../shared/ErrorState';
 import CustomSelect from '../shared/CustomSelect';
 import ResponsiveSelect from '../shared/ResponsiveSelect';
 import PH from '../shared/PH';
+import NotificationBell from '../NotificationBell';
 
 export default function PatientShell({ user, active, goto, onLogout, children }) {
   const [dropdown, setDropdown] = useState(false);
@@ -50,13 +51,13 @@ export default function PatientShell({ user, active, goto, onLogout, children })
             ))}
           </nav>
 
-          {/* User dropdown */}
-          <div className="pw-user">
-            <div className="pw-user-info" style={{ textAlign: "right", display: "flex", flexDirection: "column" }}>
-              <span className="pw-user-name">{user.name}</span>
-              <span className="pw-user-role">Pasien</span>
-            </div>
-            <div className="pw-avatar" onClick={() => setDropdown(d => !d)}>
+            <div className="pw-user">
+              <NotificationBell />
+              <div className="pw-user-info" style={{ textAlign: "right", display: "flex", flexDirection: "column", marginLeft: "12px" }}>
+                <span className="pw-user-name">{user.name}</span>
+                <span className="pw-user-role">Pasien</span>
+              </div>
+              <div className="pw-avatar" onClick={() => setDropdown(d => !d)}>
               {initials}
               {dropdown && (
                 <div className="pw-dropdown" onClick={e => e.stopPropagation()}>

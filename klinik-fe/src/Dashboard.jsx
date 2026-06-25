@@ -11,6 +11,7 @@ import DokterMgmt from './components/admin/DokterMgmt';
 import JadwalMgmt from './components/admin/JadwalMgmt';
 import AdminReservasi from './components/admin/AdminReservasi';
 import RekamMedisMgmt from './components/admin/RekamMedisMgmt';
+import NotificationBell from './components/NotificationBell';
 
 export default function Dashboard({ user: initialUser, onLogout, callApi, active, setActive, showToast }) {
   const [open, setOpen] = useState(false);
@@ -116,7 +117,10 @@ export default function Dashboard({ user: initialUser, onLogout, callApi, active
               <div className="topbar-sub">Klinik Sehat · Admin</div>
             </div>
           </div>
-          <div className="avatar av-sm">{initials}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <NotificationBell />
+            <div className="avatar av-sm">{initials}</div>
+          </div>
         </header>
         <div className="page-body">{adminContent()}</div>
       </div>
