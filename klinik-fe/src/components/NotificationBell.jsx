@@ -149,17 +149,33 @@ export default function NotificationBell() {
 
             {/* ── Dropdown Panel ── */}
             {isOpen && (
-                <div style={{
-                    position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                    width: 340,
-                    background: '#fff',
-                    borderRadius: 16,
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
-                    border: '1px solid #e2ebe8',
-                    zIndex: 9999,
-                    overflow: 'hidden',
-                    animation: 'fadeUp 0.2s ease',
-                }}>
+                <>
+                <style>{`
+                    .notif-dropdown {
+                        position: absolute;
+                        top: calc(100% + 8px);
+                        right: 0;
+                        width: 340px;
+                        background: #fff;
+                        border-radius: 16px;
+                        box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+                        border: 1px solid #e2ebe8;
+                        z-index: 9999;
+                        overflow: hidden;
+                        animation: fadeUp 0.2s ease;
+                    }
+                    @media (max-width: 640px) {
+                        .notif-dropdown {
+                            position: fixed;
+                            top: 72px; /* adjust below the mobile header */
+                            right: 16px;
+                            left: 16px;
+                            width: auto;
+                            max-width: none;
+                        }
+                    }
+                `}</style>
+                <div className="notif-dropdown">
                     {/* Header */}
                     <div style={{
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -281,6 +297,7 @@ export default function NotificationBell() {
                         </div>
                     )}
                 </div>
+                </>
             )}
         </div>
     );
