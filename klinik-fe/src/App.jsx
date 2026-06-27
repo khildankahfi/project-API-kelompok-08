@@ -6,9 +6,10 @@ import Dashboard from "./Dashboard";
 import "./styles/global.css";
 
 export default function App() {
-  const [page, setPage] = useState("login");
+  const initialToken = localStorage.getItem("klinik_token") || "";
+  const [page, setPage] = useState(initialToken ? "loading" : "login");
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(() => localStorage.getItem("klinik_token") || "");
+  const [token, setToken] = useState(initialToken);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("klinik_api_key") || "");
   const [active, setActive] = useState("home");
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,7 @@ export default function App() {
     if (!token) return;
     api("/auth/me", {}, token)
       .then(r => { setUser(r.data); storeKey(r.data.api_key); setPage("dashboard"); })
-      .catch(() => { localStorage.removeItem("klinik_token"); setToken(""); });
+      .catch(() => { localStorage.removeItem("klinik_token"); setToken(""); setPage("login"); });
   }, [token]);
 
   const login = async (email, password) => {
@@ -69,6 +70,11 @@ export default function App() {
   return (
     <>
       {toast && <div className={`toast t-${toast.type}`} onClick={() => setToast(null)}>{toast.msg}</div>}
+      {page === "loading" && (
+        <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center', color: '#0a7c6e', fontSize: 16 }}>
+          Memuat data profil...
+        </div>
+      )}
       {page === "login" && <LoginPage onLogin={login} onGoto={setPage} loading={loading} error={authErr} />}
       {page === "register" && <RegisterPage onRegister={register} onGoto={setPage} loading={loading} error={authErr} />}
       {page === "dashboard" && user && <Dashboard user={user} onLogout={logout} callApi={callApi} active={active} setActive={setActive} showToast={showToast} />}
